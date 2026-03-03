@@ -47,10 +47,13 @@ class Review(Base):
     content = Column(String(255), default="No content")
     rating = Column(Integer, CheckConstraint('rating >= 1 AND rating <= 5'), nullable=False)
 
-class PointsPerDate(Base):
-    __tablename__ = "points_per_date"
-    points_earned = Column(Integer, primary_key=True)
-    date_earned = Column(DateTime, server_default = func.now(), primary_key=True)
+class PointsTransaction(Base):
+    __tablename__ = "points_transactions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    booking_id = Column(Integer, ForeignKey("bookings.id"))
+    points = Column(Integer, nullable=False)
+    recorded_at = Column(DateTime, server_default = func.now())
 
 
 Base.metadata.create_all(engine, checkfirst=True)
