@@ -1,5 +1,5 @@
-from db import Base, engine
-from sqlalchemy import Column, Integer, String, Numeric, Date, Boolean, DateTime, func, ForeignKey, CheckConstraint
+from db_connection import Base
+from sqlalchemy import Column, Integer, String, Numeric, Date, Boolean, DateTime, func, ForeignKey, CheckConstraint, UniqueConstraint
 
 class User(Base):
     __tablename__ = "users"
@@ -13,8 +13,8 @@ class Hotel(Base):
     name = Column(String(100), nullable=False)
     price_per_night = Column(Numeric(10, 2), nullable=False)
     city = Column(String(100), nullable=False)
-    address = Column(String(100), nullable=False)
-    rating = Column(Numeric, CheckConstraint('rating >= 1 AND rating <= 5'), default=0)
+    address = Column(String(100), unique=True, nullable=False)
+    rating = Column(Numeric, CheckConstraint('rating >= 0 AND rating <= 5'), default=0)
 
 class HotelRoom(Base):
     __tablename__ = "hotel_rooms"
@@ -24,9 +24,13 @@ class HotelRoom(Base):
 
 class RoomDate(Base):
     __tablename__ = "room_dates"
-    room = Column(Integer, ForeignKey("hotel_rooms.id"), nullable=False, primary_key=True)
-    date = Column(Date, nullable=False, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    room = Column(Integer, ForeignKey("hotel_rooms.id"), nullable=False)
+    date = Column(Date, nullable=False)
     is_available = Column(Boolean, default=True)
+    __table_args__ = (
+        UniqueConstraint('room', 'date'),
+    )
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -54,8 +58,3 @@ class PointsTransaction(Base):
     booking_id = Column(Integer, ForeignKey("bookings.id"))
     points = Column(Integer, nullable=False)
     recorded_at = Column(DateTime, server_default = func.now())
-
-
-Base.metadata.create_all(engine, checkfirst=True)
-print("Tables successfully created")
-
