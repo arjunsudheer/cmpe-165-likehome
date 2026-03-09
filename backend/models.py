@@ -1,5 +1,17 @@
 from db_connection import Base
-from sqlalchemy import Column, Integer, String, Numeric, Date, Boolean, DateTime, func, ForeignKey, CheckConstraint, UniqueConstraint
+import enum
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, func, ForeignKey, CheckConstraint, Enum
+
+class RoomType(enum.Enum):
+    SINGLE = "SINGLE"
+    DOUBLE = "DOUBLE"
+    TRIPLE = "TRIPLE"
+    QUAD = "QUAD"
+
+class Status(enum.Enum):
+    CONFIRMED = "CONFIRMED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 class User(Base):
     __tablename__ = "users"
@@ -21,25 +33,18 @@ class HotelRoom(Base):
     id = Column(Integer, primary_key=True)
     hotel = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     room = Column(Integer, nullable=False)
-
-class RoomDate(Base):
-    __tablename__ = "room_dates"
-    id = Column(Integer, primary_key=True)
-    room = Column(Integer, ForeignKey("hotel_rooms.id"), nullable=False)
-    date = Column(Date, nullable=False)
-    is_available = Column(Boolean, default=True)
-    __table_args__ = (
-        UniqueConstraint('room', 'date'),
-    )
+    room_type = Column(Enum(RoomType), nullable=False)
 
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
     title = Column(String(100), nullable=False)
     user = Column(Integer, ForeignKey("users.id"), nullable=False)
+    room = Column(Integer, ForeignKey("hotel_rooms.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
+    status = Column(Enum(Status), default=Status.CONFIRMED)
     created_at = Column(DateTime, server_default = func.now())
 
 class Review(Base):
