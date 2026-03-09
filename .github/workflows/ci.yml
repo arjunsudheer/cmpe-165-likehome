@@ -1,47 +1,71 @@
-name: PR Test Suite
-
 on:
   pull_request:
     branches: [ main ]
 
 jobs:
   frontend:
-    name: Frontend Tests
+    name: Frontend Build & Tests
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ./frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm install
 
-      - name: Run lint (if exists)
+      - name: Run lint (if configured)
         run: npm run lint --if-present
 
       - name: Run tests
-        run: npm test -- --watchAll=false
+        run: npm test --if-present
 
+      - name: Build project
+        run: npm run build
 
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     defaults:
       run:
         working-directory: ./backend
 
-    steps:
-      - uses: actions/checkout@v4
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
