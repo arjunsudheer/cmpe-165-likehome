@@ -1,4 +1,7 @@
-from db_connection import Base
+#create a new fole named models.py to define all the database models
+
+
+from backend.database.db_connection import Base
 import enum
 from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, func, ForeignKey, CheckConstraint, Enum
 
