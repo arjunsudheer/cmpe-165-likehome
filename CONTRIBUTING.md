@@ -4,6 +4,9 @@ Welcome to the project! To maintain a clean history and high code quality, pleas
 
 ## 🌿 Branching Strategy
 
+Always ensure your local environment is up to date before starting:
+`git checkout main && git pull && git checkout -b your-branch-name`
+
 We use a structured branching model. All new work must be performed in a dedicated branch.
 
 ### Branch Naming Convention
@@ -12,8 +15,8 @@ All branch names must follow this specific pattern:
 `category/us-[ID]-[issue-name]`
 
 1. **Category:** Your branch must start with one of the following:
-    * `feature/` : New functionality or enhancements.
-    * `bugfix/` : Fixing a bug or error.
+    * `feat/` : New functionality or enhancements.
+    * `fix/` : Fixing a bug or error.
     * `chore/` : Maintenance tasks (dependencies, build configs).
     * `docs/` : Documentation-only changes.
 2. **User Story ID:** Must include `us-` followed by a sequence of up to 4 alphanumeric characters (e.g., `us-a01`). The user story ID must refer to the open issue you are addressing.
@@ -21,24 +24,13 @@ All branch names must follow this specific pattern:
 
 ## 💬 Commit Message Standards
 
-We follow the **Conventional Commits** specification to keep our history readable and searchable.
+We aim for a history that is easy to read and searchable.
 
-**Format:** `<type>: <description>`
-
-| Type | Purpose |
-| :--- | :--- |
-| **feat** | A new feature |
-| **fix** | A bug fix |
-| **docs** | Documentation only changes |
-| **style** | Formatting, missing semi-colons, etc. (no logic change) |
-| **refactor** | Code change that neither fixes a bug nor adds a feature |
-| **test** | Adding missing tests or correcting existing tests |
-| **chore** | Maintenance tasks (dependencies, tooling, configs) |
-| **ci** | CI/CD configuration changes |
-| **build** | Build system or dependency changes |
-
-**Example:**
-`feat: add password strength validation to signup`
+* **Make Small Commits:** Each commit should do **one thing**, not five things at once.
+* **Write Clear Messages:** Start with a **verb**. Avoid vague terms like "stuff" or "changes.
+  * **Good:** `Add login endpoint`
+  * **Good:** `Fix reservation date validation`
+  * **Bad:** `Updated search filter query — not stuff or changes`
 
 ## 🛡️ Branch Protection Rules
 
