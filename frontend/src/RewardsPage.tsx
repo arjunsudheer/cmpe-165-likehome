@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./RewardsPage.css";
 
 // mock data for now
-const MOCK_BALANCE = 420.369;
+const MOCK_BALANCE = 420;
 const POINTS_TO_DOLLAR = 100;
 
 export default function RewardsPage() {
