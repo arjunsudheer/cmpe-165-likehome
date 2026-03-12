@@ -2,7 +2,7 @@
 
 import os
 from flask import Flask
-from .auth import auth_bp
+from backend.app.auth import auth_bp
 from backend.app.extensions import bcrypt
 from flask_cors import CORS
 

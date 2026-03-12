@@ -1,22 +1,26 @@
 #registration endpoint
-from flask import app, request, jsonify
-from . import auth_bp
+from flask import request, jsonify
+from sqlalchemy.exc import IntegrityError
+
+from backend.app.auth import auth_bp
+from backend.app.auth.forms import validate_registration 
+
 from backend.models.models import User
 from backend.database.db_connection import session
 from backend.app.extensions import bcrypt
-from sqlalchemy.exc import IntegrityError
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
     #read data
     data = request.get_json()
+    #email format and password match validation
+    validation_error = validate_registration(data)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
     email = data.get("email")
     password = data.get("password")
 
-    #required fields validation for bad request
-    if not email or not password:
-        return jsonify({"message": "email and password are required"}), 400
-    
+
     #hash password
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
 
