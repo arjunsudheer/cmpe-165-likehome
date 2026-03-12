@@ -2,12 +2,12 @@
 from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 
-from backend.app.auth import auth_bp
-from backend.app.auth.forms import validate_registration 
+from app.auth import auth_bp
+from app.auth.forms import validate_registration 
 
-from backend.models.models import User
-from backend.database.db_connection import session
-from backend.app.extensions import bcrypt
+from models.models import User
+from database.db_connection import session
+from app.extensions import bcrypt
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
