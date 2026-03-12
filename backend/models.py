@@ -18,6 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=False) # is longer to store w/ hashing
+    points = Column(Integer, nullable=False, default=0) # ALTER TABLE users ADD COLUMN points INTEGER NOT NULL DEFAULT 0; (if you init db before this was here)
 
 class Hotel(Base):
     __tablename__ = "hotels"
