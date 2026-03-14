@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import DeclarativeBase
 import os
 from dotenv import load_dotenv
+import models
 
 load_dotenv()
 
@@ -12,3 +13,9 @@ metadata = MetaData()
 
 class Base(DeclarativeBase):
     pass
+
+def init_tables_and_data():
+    Base.metadata.create_all(engine, checkfirst=True)
+
+if __name__ == "__main__":
+    init_tables_and_data()
