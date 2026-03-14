@@ -14,7 +14,8 @@ def create_app():
     app.config.update(
         SECRET_KEY=os.getenv("SECRET_KEY", "default-secret-key"),
         SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL"),
-        SQLALCHEMY_TRACK_MODIFICATIONS=False
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID")
     )
 
     CORS(app) #enable CORS for all routes
