@@ -1,3 +1,4 @@
 psycopg2-binary
 sqlalchemy
-dotenv
+python-dotenv
+pytest
