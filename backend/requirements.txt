@@ -1,3 +1,10 @@
 psycopg2-binary
 sqlalchemy
-dotenv
+python-dotenv
+flask
+flask_sqlalchemy
+flask_login
+flask_bcrypt
+flask_wtf
+wtforms
+email-validator

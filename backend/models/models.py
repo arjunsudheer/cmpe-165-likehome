@@ -1,4 +1,4 @@
-from db_connection import Base
+from database.db_connection import Base
 import enum
 from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, func, ForeignKey, CheckConstraint, Enum
 

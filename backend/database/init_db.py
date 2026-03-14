@@ -1,5 +1,5 @@
-from db_connection import engine, Base
-import models
+from database.db_connection import engine, Base
+import models.models as models
 
 def init_tables_and_data():
     Base.metadata.create_all(engine, checkfirst=True)
