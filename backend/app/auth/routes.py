@@ -2,8 +2,8 @@
 from flask import current_app, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from app.auth import auth_bp
-from app.auth.forms import validate_registration 
-from backend.database import User
+from app.auth.forms import validate_login, validate_registration 
+from database.models import User
 from database.db_connection import session
 from app.extensions import bcrypt
 from google.oauth2 import id_token
@@ -13,8 +13,11 @@ from google.auth.transport import requests as grequests
 @auth_bp.route("/register", methods=["POST"])
 def register():
     #read data
-    data = request.get_json()
-    #email format and password match validation
+    data = request.get_json(silent=True)
+    #check for valid data
+    if not data:
+        return jsonify({"error": "Invalid JSON data"}), 400
+   #validate data
     validation_error = validate_registration(data)
     if validation_error:
         return jsonify({"error": validation_error}), 400
@@ -37,10 +40,13 @@ def register():
     return jsonify({"message": "user registered successfully"}), 201
 
 
+
+
 #oauth login endpoint US-A01.4
 @auth_bp.route("/oauth-login", methods=["POST"])
 def oauth_login():
     data = request.get_json()
+    
     #check for valid data
     if not data:
         return jsonify({"error": "Invalid JSON data"}), 400
@@ -49,7 +55,6 @@ def oauth_login():
     #check for token
     if not token:
         return jsonify({"error": "Token is required"}), 400
-    
     try:
         # Verify the token and get user info
         id_info = id_token.verify_oauth2_token(token, grequests.Request(), current_app.config["GOOGLE_CLIENT_ID"] )
@@ -70,4 +75,22 @@ def oauth_login():
         return jsonify({"error": "Invalid token"}), 400
 
 
-
+#login endpoint US-A02.1 
+@auth_bp.route("/login", methods=["POST"])
+def login():
+    data = request.get_json(silent=True)
+    #check for valid data
+    if not data:
+        return jsonify({"error": "Invalid JSON data"}), 400
+    #validate data
+    validation_error = validate_login(data)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
+    email = data.get("email")
+    password = data.get("password")
+    user = session.query(User).filter_by(email=email).first()
+    #check if user exists and password is correct
+    if user and bcrypt.check_password_hash(user.password, password):
+        return jsonify({"message": "Login successful", "email": email}), 200
+    else:
+        return jsonify({"error": "Invalid email or password"}), 401
