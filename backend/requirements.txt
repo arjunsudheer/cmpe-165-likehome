@@ -1,4 +1,9 @@
 psycopg2-binary
 sqlalchemy
-dotenv
+python-dotenv
 faker==40.8.0
+flask==3.1.0
+flask-smorest==0.45.0
+flask-jwt-extended==4.7.1
+flask-cors==5.0.1
+marshmallow==3.23.2
