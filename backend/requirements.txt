@@ -12,4 +12,5 @@ requests
 python-dotenv
 google-auth-oauthlib
 faker==40.8.0
+pytest
 
