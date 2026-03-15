@@ -1,7 +1,7 @@
 psycopg2-binary
 sqlalchemy
 flask
-flask_sqlalchemy
+flask_cors
 flask_login
 flask_bcrypt
 flask_wtf
@@ -10,5 +10,6 @@ email-validator
 google-auth
 requests
 python-dotenv
+google-auth-oauthlib
 faker==40.8.0
 
