@@ -1,0 +1,64 @@
+.rewards-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.rewards-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.rewards-header {
+  margin-bottom: 1rem;
+}
+
+.rewards-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.rewards-loading {
+  text-align: center;
+  color: #6b7280;
+  padding: 2rem 0;
+  margin: 0;
+}
+
+.rewards-empty {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.95rem;
+  padding: 1.5rem 0;
+  margin: 0;
+}
+
+.rewards-balance {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.balance-points {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.25rem;
+}
+
+.balance-label {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.balance-dollars {
+  font-size: 1.1rem;
+  color: #6b7280;
+  margin: 0;
+}
