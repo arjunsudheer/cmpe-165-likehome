@@ -1,6 +1,5 @@
 psycopg2-binary
 sqlalchemy
-python-dotenv
 flask
 flask_sqlalchemy
 flask_login
@@ -10,3 +9,6 @@ wtforms
 email-validator
 google-auth
 requests
+python-dotenv
+faker==40.8.0
+

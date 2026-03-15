@@ -3,7 +3,7 @@ from flask import current_app, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from app.auth import auth_bp
 from app.auth.forms import validate_registration 
-from models.models import User
+from backend.database import User
 from database.db_connection import session
 from app.extensions import bcrypt
 from google.oauth2 import id_token
