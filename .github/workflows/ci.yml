@@ -68,6 +68,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      
+      - name: Install psycopg2 dependencies
+        run: sudo apt-get install -y libpq-dev
 
       - name: Install dependencies
         run: |

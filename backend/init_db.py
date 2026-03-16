@@ -1,7 +1,7 @@
-from database.db_connection import engine, Base
-from database.mock_hotels import mock_hotels, mock_hotel_rooms
+from db_connection import engine, Base
+from mock_hotels import mock_hotels, mock_hotel_rooms
 from sqlalchemy import select
-from database.models import Hotel
+from models import Hotel
 
 def init_tables_and_data():
     Base.metadata.create_all(engine, checkfirst=True)
