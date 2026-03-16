@@ -3,8 +3,8 @@ from flask import current_app, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from app.auth import auth_bp
 from app.auth.forms import validate_login, validate_registration 
-from database.models import User
-from database.db_connection import session
+from models import User
+from db_connection import session
 from app.extensions import bcrypt
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
@@ -66,13 +66,14 @@ def oauth_login():
         if not user:
             user = User(
                 email=email,
-                password="google_oauth"  # dummy password since we won't use it for OAuth users
+                password= None
                 )
             session.add(user)
             session.commit()
         return jsonify({"message": "Google login successful", "email": email}), 200
     except ValueError:
         return jsonify({"error": "Invalid token"}), 400
+
 
 
 #login endpoint US-A02.1 
@@ -94,3 +95,4 @@ def login():
         return jsonify({"message": "Login successful", "email": email}), 200
     else:
         return jsonify({"error": "Invalid email or password"}), 401
+    
