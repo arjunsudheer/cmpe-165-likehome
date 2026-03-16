@@ -1,0 +1,45 @@
+name: Auto Generate Docs
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python doc generator
+        run: pip install pdoc
+
+      - name: Generate backend docs
+        run: pdoc backend --output-dir docs/backend
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: frontend
+
+      - name: Generate frontend docs
+        run: npx typedoc
+        working-directory: frontend
+
+      - name: Commit updated docs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add docs
+          git commit -m "Auto-update docs"
+          git push
