@@ -12,5 +12,6 @@ email-validator
 google-auth
 requests
 google-auth-oauthlib
-
+pytest
 bcrypt==4.3.0
+
