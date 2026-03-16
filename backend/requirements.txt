@@ -13,3 +13,4 @@ google-auth
 requests
 google-auth-oauthlib
 
+bcrypt==4.3.0
