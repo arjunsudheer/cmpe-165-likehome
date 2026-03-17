@@ -3,3 +3,4 @@ sqlalchemy
 python-dotenv
 faker==40.8.0
 pytest
+bcrypt==4.3.0
