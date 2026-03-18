@@ -7,4 +7,14 @@ flask-smorest==0.45.0
 flask-jwt-extended==4.7.1
 flask-cors==5.0.1
 marshmallow==3.23.2
+flask_login
+flask_bcrypt
+flask_wtf
+wtforms
+email-validator
+google-auth
+requests
+google-auth-oauthlib
+pytest
 bcrypt==4.3.0
+
