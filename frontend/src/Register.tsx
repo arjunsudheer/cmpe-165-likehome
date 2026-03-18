@@ -1,14 +1,18 @@
 // frontend/src/Register.jsx
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import "./Register.css";
 
 export default function Register() {
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [errors, setErrors] = useState({});
-  const [status, setStatus] = useState("");
+  type FormState = { name: string; email: string; password: string };
+  type ErrorsState = Partial<Record<keyof FormState, string>>;
+
+  const [form, setForm] = useState<FormState>({ name: "", email: "", password: "" });
+  const [errors, setErrors] = useState<ErrorsState>({});
+  const [status, setStatus] = useState<string>("");
 
   const validate = () => {
-    const e = {};
+    const e: ErrorsState = {};
     if (!form.name.trim()) e.name = "Please enter your name";
     if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Please enter a valid email";
     if (form.password.length < 6) e.password = "Password must be at least 6 characters";
@@ -16,10 +20,12 @@ export default function Register() {
     return Object.keys(e).length === 0;
   };
 
-  const handleChange = (k) => (ev) =>
-    setForm({ ...form, [k]: ev.target.value });
+  const handleChange =
+    (k: keyof FormState) =>
+    (ev: ChangeEvent<HTMLInputElement>) =>
+      setForm((prev) => ({ ...prev, [k]: ev.target.value }));
 
-  const handleSubmit = async (ev) => {
+  const handleSubmit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     setStatus("");
     if (!validate()) return;
@@ -38,7 +44,11 @@ export default function Register() {
       setStatus("Registration successful!");
       setForm({ name: "", email: "", password: "" });
     } catch (err) {
-      setStatus("Network error: " + err.message);
+      if (err instanceof Error) {
+        setStatus("Network error: " + err.message);
+      } else {
+        setStatus("Network error");
+      }
     }
   };
 
