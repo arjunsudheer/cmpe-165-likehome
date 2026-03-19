@@ -1,25 +1,34 @@
-// frontend/src/Register.jsx
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import "./Register.css";
+
+interface FormErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+}
 
 export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState("");
 
   const validate = () => {
-    const e = {};
+    const e: FormErrors = {};
     if (!form.name.trim()) e.name = "Please enter your name";
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Please enter a valid email";
-    if (form.password.length < 6) e.password = "Password must be at least 6 characters";
+    if (!/^\S+@\S+\.\S+$/.test(form.email))
+      e.email = "Please enter a valid email";
+    if (form.password.length < 6)
+      e.password = "Password must be at least 6 characters";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleChange = (k) => (ev) =>
-    setForm({ ...form, [k]: ev.target.value });
+  const handleChange =
+    (k: keyof typeof form) => (ev: ChangeEvent<HTMLInputElement>) =>
+      setForm({ ...form, [k]: ev.target.value });
 
-  const handleSubmit = async (ev) => {
+  const handleSubmit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     setStatus("");
     if (!validate()) return;
@@ -37,18 +46,18 @@ export default function Register() {
       }
       setStatus("Registration successful!");
       setForm({ name: "", email: "", password: "" });
-    } catch (err) {
-      setStatus("Network error: " + err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setStatus("Network error: " + message);
     }
   };
 
   return (
     <div className="register-container">
-      {/* Left side */}
       <div className="register-brand">
         <h2>LikeHome</h2>
         <p>Find your perfect home and build your dream life</p>
-        
+
         <div className="register-features">
           <div className="feature">
             <div className="feature-icon">🏠</div>
@@ -57,15 +66,15 @@ export default function Register() {
               <p>Browse thousands of properties</p>
             </div>
           </div>
-          
+
           <div className="feature">
             <div className="feature-icon">🔒</div>
             <div className="feature-text">
-              <h3>Safe & Secure</h3>
+              <h3>Safe &amp; Secure</h3>
               <p>Your data is protected with us</p>
             </div>
           </div>
-          
+
           <div className="feature">
             <div className="feature-icon">⚡</div>
             <div className="feature-text">
@@ -76,7 +85,6 @@ export default function Register() {
         </div>
       </div>
 
-      {/* Right side */}
       <div className="register-card">
         <div className="register-content">
           <div className="register-header">
@@ -95,7 +103,9 @@ export default function Register() {
                 placeholder="John Doe"
                 className={errors.name ? "input-error" : ""}
               />
-              {errors.name && <span className="error-message">{errors.name}</span>}
+              {errors.name && (
+                <span className="error-message">{errors.name}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -108,7 +118,9 @@ export default function Register() {
                 placeholder="your@email.com"
                 className={errors.email ? "input-error" : ""}
               />
-              {errors.email && <span className="error-message">{errors.email}</span>}
+              {errors.email && (
+                <span className="error-message">{errors.email}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -132,7 +144,9 @@ export default function Register() {
           </form>
 
           {status && (
-            <div className={`status-message ${status.includes("successful") ? "success" : "error"}`}>
+            <div
+              className={`status-message ${status.includes("successful") ? "success" : "error"}`}
+            >
               {status}
             </div>
           )}

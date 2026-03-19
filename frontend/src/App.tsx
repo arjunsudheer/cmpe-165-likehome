@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Register from "./Register";
+import RewardsPage from "./RewardsPage";
+import CheckoutPage from "./CheckoutPage";
 import BookingConflictPage from "./BookingConflictWarning";
 
 export default function App() {
@@ -7,6 +9,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Register />} />
+        <Route path="/rewards" element={<RewardsPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/conflict" element={<BookingConflictPage />} />
       </Routes>
     </BrowserRouter>
