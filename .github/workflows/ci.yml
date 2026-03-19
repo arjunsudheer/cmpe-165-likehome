@@ -59,6 +59,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: test_db
 
     steps:
       - name: Checkout repository
@@ -68,6 +73,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      
+      - name: Install psycopg2 dependencies
+        run: sudo apt-get install -y libpq-dev
 
       - name: Install dependencies
         run: |
