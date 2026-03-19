@@ -1,52 +1,55 @@
 import { useState, useEffect } from "react";
-import { MOCK_BALANCE, POINTS_TO_DOLLAR } from "./constants";
 import "./RewardsPage.css";
 
+// mock data for now, will hook up to backend later
+const MOCK_BALANCE = 4820;
+const POINTS_TO_DOLLAR = 100;
+
 export default function RewardsPage() {
-  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
+  const balance = MOCK_BALANCE;
 
   useEffect(() => {
-    // Simulate fetching balance from backend (GET /api/users/:id/points)
-    const timer = setTimeout(() => {
-      setBalance(MOCK_BALANCE);
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    setTimeout(() => setLoading(false), 400);
   }, []);
+
+  // count up animation for the balance number
+  useEffect(() => {
+    if (loading) return;
+    let cur = 0;
+    const inc = balance / 35;
+    const timer = setInterval(() => {
+      cur += inc;
+      if (cur >= balance) { setCount(balance); clearInterval(timer); }
+      else setCount(Math.floor(cur));
+    }, 30);
+    return () => clearInterval(timer);
+  }, [loading, balance]);
+
+  const dollarValue = balance / POINTS_TO_DOLLAR;
 
   if (loading) {
     return (
       <div className="rewards-container">
-        <div className="rewards-card">
-          <p className="rewards-loading">Loading rewards…</p>
+        <div className="balance-card loading">
+          <div className="shimmer" />
         </div>
       </div>
     );
   }
 
-  const dollarValue = balance / POINTS_TO_DOLLAR;
-
   return (
     <div className="rewards-container">
-      <div className="rewards-card">
-        <div className="rewards-header">
-          <p className="rewards-title">Your Rewards</p>
+      <div className="balance-card">
+        <p className="balance-label">Rewards Balance</p>
+        <div className="balance-row">
+          <span className="balance-number">{count.toLocaleString()}</span>
+          <span className="balance-points">points</span>
         </div>
-
-        {balance <= 0 ? (
-          <p className="rewards-empty">No rewards points available</p>
-        ) : (
-          <div className="rewards-balance">
-            <p className="balance-points">
-              {balance.toLocaleString()}{" "}
-              <span className="balance-label">points</span>
-            </p>
-            <p className="balance-dollars">
-              &asymp; ${dollarValue.toFixed(2)}
-            </p>
-          </div>
-        )}
+        <p className="balance-info">
+          <span style={{ color: "#667eea", fontWeight: 600 }}>${dollarValue.toFixed(2)}</span> value
+        </p>
       </div>
     </div>
   );

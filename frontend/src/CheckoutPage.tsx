@@ -1,98 +1,102 @@
 import { useState, useEffect } from "react";
-import type { ChangeEvent } from "react";
-import {
-  MOCK_BALANCE,
-  POINTS_TO_DOLLAR,
-  MOCK_BOOKING_TOTAL,
-} from "./constants";
 import "./CheckoutPage.css";
+
+// mock data - replace with api call later
+const MOCK_BALANCE = 420;
+const POINTS_TO_DOLLAR = 100;
+const MOCK_BOOKING_TOTAL = 289.0;
 
 export default function CheckoutPage() {
   const [balance, setBalance] = useState(0);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       setBalance(MOCK_BALANCE);
       setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    }, 400);
   }, []);
 
-  const maxPoints = Math.min(balance, MOCK_BOOKING_TOTAL * POINTS_TO_DOLLAR);
+  const maxPoints = Math.min(balance, Math.floor(MOCK_BOOKING_TOTAL * POINTS_TO_DOLLAR));
   const discount = pointsToRedeem / POINTS_TO_DOLLAR;
   const pct = maxPoints > 0 ? (pointsToRedeem / maxPoints) * 100 : 0;
 
-  const handleSlider = (e: ChangeEvent<HTMLInputElement>) => {
-    setPointsToRedeem(Number(e.target.value));
+  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Math.min(parseInt(e.target.value, 10), maxPoints);
+    setPointsToRedeem(val);
+    setInputValue(val > 0 ? val.toString() : "");
   };
 
-  if (loading) {
-    return (
-      <div className="checkout-container">
-        <div className="checkout-card">
-          <p className="checkout-loading">Loading…</p>
-        </div>
-      </div>
-    );
-  }
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setInputValue(raw);
 
-  if (balance <= 0) {
-    return (
-      <div className="checkout-container">
-        <div className="checkout-card">
-          <div className="checkout-header">
-            <p className="checkout-title">Use Rewards</p>
-            <p className="checkout-empty">No rewards points available</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    if (raw === "") {
+      setPointsToRedeem(0);
+      return;
+    }
+
+    const val = Math.min(parseInt(raw, 10), maxPoints);
+    setPointsToRedeem(val);
+  };
+
+  // when they click out of the input, snap to valid value
+  const handleBlur = () => {
+    if (inputValue === "") {
+      setPointsToRedeem(0);
+      return;
+    }
+    const val = Math.min(parseInt(inputValue, 10) || 0, maxPoints);
+    setPointsToRedeem(val);
+    setInputValue(val > 0 ? val.toString() : "");
+  };
+
+  if (loading || balance <= 0) return null;
 
   return (
     <div className="checkout-container">
-      <div className="checkout-card">
-        <div className="checkout-header">
-          <p className="checkout-title">Use Rewards</p>
-          <p className="checkout-balance">
-            {balance.toLocaleString()} pts (${(balance / POINTS_TO_DOLLAR).toFixed(2)})
+      <div className="rewards-card">
+        <div className="rewards-header">
+          <p className="rewards-title">Use Rewards</p>
+          <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+            <span style={{ fontWeight: 600, color: "#111827" }}>{balance.toLocaleString()}</span> pts available
           </p>
         </div>
-
-        <div className="slider-section">
-          <label htmlFor="points-slider" className="slider-label">
-            Redeem points
-          </label>
-          <input
-            id="points-slider"
-            type="range"
-            min={0}
-            max={maxPoints}
-            value={pointsToRedeem}
-            onChange={handleSlider}
-            className="points-slider"
-          />
-          <div className="slider-info">
-            <span>{pointsToRedeem.toLocaleString()} pts</span>
-            <span>{pct.toFixed(0)}%</span>
-          </div>
+        <input
+          type="range"
+          className="slider"
+          min={0}
+          max={maxPoints}
+          step={10}
+          value={pointsToRedeem}
+          onChange={handleSlider}
+          style={{
+            background: `linear-gradient(to right, #667eea 0%, #667eea ${pct}%, #edf0f3 ${pct}%, #edf0f3 100%)`,
+          }}
+        />
+        <div className="slider-labels">
+          <span>0</span>
+          {pointsToRedeem > 0 && (
+            <span style={{ color: "#667eea", fontWeight: 600, fontSize: 13 }}>
+              {pointsToRedeem.toLocaleString()} pts → -${discount.toFixed(2)}
+            </span>
+          )}
+          <span>{maxPoints.toLocaleString()}</span>
         </div>
 
-        <div className="checkout-summary">
-          <div className="summary-row">
-            <span>Booking total</span>
-            <span>${MOCK_BOOKING_TOTAL.toFixed(2)}</span>
-          </div>
-          <div className="summary-row discount">
-            <span>Points discount</span>
-            <span>&minus;${discount.toFixed(2)}</span>
-          </div>
-          <div className="summary-row total">
-            <span>You pay</span>
-            <span>${(MOCK_BOOKING_TOTAL - discount).toFixed(2)}</span>
-          </div>
+        {/* text input so user can type exact amount */}
+        <div className="points-input-row">
+          <label className="points-input-label">Or enter points:</label>
+          <input
+            type="text"
+            className="points-input"
+            placeholder="0"
+            value={inputValue}
+            onChange={handleInput}
+            onBlur={handleBlur}
+          />
         </div>
       </div>
     </div>
