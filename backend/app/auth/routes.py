@@ -27,7 +27,7 @@ def register():
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
     #create user
     new_user = User(
-    email=email,
+    email=email.lower(),
     password=hashed_password)
     #save to db with error handling for duplicate email
     try:
