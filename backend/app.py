@@ -4,7 +4,10 @@ from flask_smorest import Api
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
+from db_connection import Base,engine
+from flask_bcrypt import Bcrypt
 
+bcrypt = Bcrypt()
 load_dotenv()
 
 
@@ -20,17 +23,23 @@ def create_app():
         OPENAPI_URL_PREFIX="/",
         OPENAPI_SWAGGER_UI_PATH="/api/docs",
         OPENAPI_SWAGGER_UI_URL="https://cdn.jsdelivr.net/npm/swagger-ui-dist/",
+        GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID")
+
     )
 
     CORS(app)
     JWTManager(app)
+    bcrypt.init_app(app)
+    Base.metadata.create_all(engine)
 
     api = Api(app)
 
-    from api_docs import auth_bp, hotels_bp, bookings_bp, payments_bp, rewards_bp
+    from auth import auth_bp
+    from hotels import hotels_bp
+    from api_docs import bookings_bp, payments_bp, rewards_bp
 
-    api.register_blueprint(auth_bp, url_prefix="/api/auth")
-    api.register_blueprint(hotels_bp, url_prefix="/api/hotels")
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(hotels_bp, url_prefix="/api/hotels")
     api.register_blueprint(bookings_bp, url_prefix="/api/bookings")
     api.register_blueprint(payments_bp, url_prefix="/api/payments")
     api.register_blueprint(rewards_bp, url_prefix="/api/rewards")

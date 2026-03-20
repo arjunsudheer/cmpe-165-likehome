@@ -17,6 +17,6 @@ This repository is dedicated to the LikeHome Project from the CMPE 165 class at 
 
 4. Run the server: 
     ```sh
-    python run.py
+    python app.py
     ```
     

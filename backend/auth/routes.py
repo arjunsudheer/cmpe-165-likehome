@@ -1,11 +1,11 @@
 #registration endpoint
 from flask import current_app, request, jsonify
 from sqlalchemy.exc import IntegrityError
-from app.auth import auth_bp
-from app.auth.forms import validate_login, validate_registration 
+from auth import auth_bp
+from auth.forms import validate_login, validate_registration 
 from models import User
 from db_connection import session
-from app.extensions import bcrypt
+from app import bcrypt
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 
