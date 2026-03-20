@@ -36,10 +36,23 @@ const rooms: Room[] = [
   },
 ];
 
+/** Parse `<input type="date">` value (YYYY-MM-DD) as a local calendar day. */
 function toLocalDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const d = new Date(year, month - 1, day);
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month - 1 ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
   return d;
 }
 
@@ -47,8 +60,14 @@ function calcNights(checkIn: string, checkOut: string): number {
   const start = toLocalDate(checkIn);
   const end = toLocalDate(checkOut);
   if (!start || !end) return 0;
-  const diffMs = end.getTime() - start.getTime();
-  const nights = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  // Calendar-day difference (avoids DST: local midnight-to-midnight ms is not always 24h).
+  const a = Date.UTC(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate(),
+  );
+  const b = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  const nights = Math.floor((b - a) / 86400000);
   return nights > 0 ? nights : 0;
 }
 
