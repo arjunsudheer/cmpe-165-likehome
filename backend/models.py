@@ -16,7 +16,7 @@ class Status(enum.Enum):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    email = Column(String(100), unique=True, nullable=False)
+    email = Column(String(100), CheckConstraint("email = lower(email)"), unique=True, nullable=False)
     password = Column(String(255), nullable=False) # is longer to store w/ hashing
     points = Column(Integer, nullable=False, default=0)
 
