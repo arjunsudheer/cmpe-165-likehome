@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Register from "./Register";
-import RewardsPage from "./RewardsPage";
-import CheckoutPage from "./CheckoutPage";
-import BookingConflictPage from "./BookingConflictWarning";
+import Register from "./auth/Register";
+import RewardsPage from "./rewards/RewardsPage";
+import CheckoutPage from "./payment/CheckoutPage";
+import BookingConflictPage from "./mybooking/BookingConflictWarning";
 
 export default function App() {
   return (
