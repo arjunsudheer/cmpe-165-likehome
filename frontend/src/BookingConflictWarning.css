@@ -1,0 +1,147 @@
+.conflict-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conflict-trigger {
+  padding: 10px 20px;
+  background: #111827;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.conflict-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.conflict-dialog {
+  background: white;
+  border-radius: 10px;
+  padding: 32px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.conflict-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.conflict-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.conflict-header p {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.conflict-bookings {
+  margin-bottom: 24px;
+}
+
+.conflict-booking {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.conflict-booking--existing {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.conflict-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.conflict-tag--new {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.conflict-tag--existing {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.conflict-hotel {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 2px;
+}
+
+.conflict-dates {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.conflict-vs {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  padding: 8px 0;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.conflict-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.conflict-btn--secondary {
+  background: white;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+
+.conflict-btn--secondary:hover {
+  background: #f9fafb;
+}
+
+.conflict-btn--danger {
+  background: #dc2626;
+  color: white;
+  border: none;
+}
+
+.conflict-btn--danger:hover {
+  background: #b91c1c;
+}

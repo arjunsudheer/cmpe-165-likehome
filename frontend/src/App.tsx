@@ -1,14 +1,17 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Register from "./Register";
-import Booking from "./Booking";
+import RewardsPage from "./RewardsPage";
+import CheckoutPage from "./CheckoutPage";
+import BookingConflictPage from "./BookingConflictWarning";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Register />} />
-        <Route path="/booking" element={<Booking />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/rewards" element={<RewardsPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/conflict" element={<BookingConflictPage />} />
       </Routes>
     </BrowserRouter>
   );
