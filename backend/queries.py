@@ -1,7 +1,7 @@
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from db_connection import engine
-from models import User, PointsTransaction
+from models import User, PointsTransaction, Booking
 import bcrypt
 
 def get_reward_points(user_id):
@@ -34,3 +34,9 @@ def verify_login(email, password):
             "message": "Login successful",
             "user_id": user.id
         }
+    
+def check_time_overlap(start_date, end_date):
+    with Session(engine) as session:
+        stmt = select(Booking.id).where(Booking.start_date < end_date, Booking.end_date > start_date)
+        result = session.execute(stmt)
+        return result.scalars().first() is not None
