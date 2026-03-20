@@ -1,5 +1,5 @@
-from app import create_app
-from db_connection import engine, Base
+from backend import create_app
+from backend.db.db_connection import engine, Base
 
 app = create_app()
 

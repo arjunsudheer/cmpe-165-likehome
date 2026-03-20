@@ -5,13 +5,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL= f"postgresql://{os.getenv('DB_USERNAME')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+print(repr(os.getenv("DB_PORT")))
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
+
 class Base(DeclarativeBase):
     pass
-    
+
+
 SessionLocal = scoped_session(sessionmaker(bind=engine))
 session = SessionLocal()

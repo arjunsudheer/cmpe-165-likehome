@@ -2,8 +2,8 @@ import pytest
 from datetime import date
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
-from models import User, Hotel, HotelRoom, Booking, Review, PointsTransaction
-from models import RoomType, Status
+from backend.db.models import User, Hotel, HotelRoom, Booking, Review, PointsTransaction
+from backend.db.models import RoomType, Status
 
 
 # ── Register: User model ──────────────────────────────────────────────
@@ -59,20 +59,24 @@ class TestHotel:
         assert hotel.city == "San Jose"
 
     def test_unique_address(self, session):
-        session.add(Hotel(
-            name="Hotel A",
-            price_per_night=Decimal("50.00"),
-            city="SF",
-            address="456 Elm St",
-        ))
+        session.add(
+            Hotel(
+                name="Hotel A",
+                price_per_night=Decimal("50.00"),
+                city="SF",
+                address="456 Elm St",
+            )
+        )
         session.flush()
 
-        session.add(Hotel(
-            name="Hotel B",
-            price_per_night=Decimal("75.00"),
-            city="SF",
-            address="456 Elm St",
-        ))
+        session.add(
+            Hotel(
+                name="Hotel B",
+                price_per_night=Decimal("75.00"),
+                city="SF",
+                address="456 Elm St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
@@ -89,20 +93,24 @@ class TestHotel:
         assert hotel.rating == 0
 
     def test_name_required(self, session):
-        session.add(Hotel(
-            price_per_night=Decimal("50.00"),
-            city="SF",
-            address="111 Pine St",
-        ))
+        session.add(
+            Hotel(
+                price_per_night=Decimal("50.00"),
+                city="SF",
+                address="111 Pine St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
     def test_price_required(self, session):
-        session.add(Hotel(
-            name="No Price Hotel",
-            city="SF",
-            address="222 Pine St",
-        ))
+        session.add(
+            Hotel(
+                name="No Price Hotel",
+                city="SF",
+                address="222 Pine St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
@@ -214,25 +222,29 @@ class TestBooking:
         session.add(room)
         session.flush()
 
-        session.add(Booking(
-            title="No User",
-            room=room.id,
-            start_date=date(2026, 8, 1),
-            end_date=date(2026, 8, 2),
-            total_price=Decimal("100.00"),
-        ))
+        session.add(
+            Booking(
+                title="No User",
+                room=room.id,
+                start_date=date(2026, 8, 1),
+                end_date=date(2026, 8, 2),
+                total_price=Decimal("100.00"),
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
     def test_title_required(self, session):
         user, room = self._make_user_and_room(session, suffix="3")
-        session.add(Booking(
-            user=user.id,
-            room=room.id,
-            start_date=date(2026, 9, 1),
-            end_date=date(2026, 9, 2),
-            total_price=Decimal("100.00"),
-        ))
+        session.add(
+            Booking(
+                user=user.id,
+                room=room.id,
+                start_date=date(2026, 9, 1),
+                end_date=date(2026, 9, 2),
+                total_price=Decimal("100.00"),
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
