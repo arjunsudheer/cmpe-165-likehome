@@ -1,7 +1,7 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.orm import Session
 from db_connection import engine
-from models import User, PointsTransaction
+from models import User, PointsTransaction, Booking
 import bcrypt
 
 def get_reward_points(user_id):
@@ -34,3 +34,11 @@ def verify_login(email, password):
             "message": "Login successful",
             "user_id": user.id
         }
+    
+def get_overlapping_booking_dates(user_id, start_date, end_date):
+    with Session(engine) as session:
+        stmt = (
+            select(Booking.id, Booking.title, Booking.start_date, Booking.end_date)
+            .where(and_(Booking.user==user_id, start_date<=Booking.end_date, end_date>=Booking.start_date))
+            )
+        return session.execute(stmt).all() 
