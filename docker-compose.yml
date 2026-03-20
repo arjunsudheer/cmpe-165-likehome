@@ -1,31 +1,28 @@
 version: "3.9"
 
 services:
-
   db:
     image: postgres:15
-    container_name: postgres_db
-    restart: always
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: app_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "1234:5432"
+      - "5432:5432"
 
   backend:
     build: ./backend
-    container_name: flask_backend
+    env_file:
+      - .env
     ports:
-      - "5000:5000"
+      - "5001:5000"
     depends_on:
       - db
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/app_db
 
   frontend:
     build: ./frontend
-    container_name: react_frontend
     ports:
       - "5173:5173"
     depends_on:
