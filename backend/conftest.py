@@ -2,6 +2,8 @@ import os
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from app import create_app
+from unittest.mock import patch
 
 # set fallback env vars so db_connection.py doesn't crash on import
 for var, val in [("DB_USERNAME", "test"), ("DB_PASSWORD", "test"),
@@ -40,3 +42,14 @@ def session(engine):
     if transaction.is_active:
         transaction.rollback()
     connection.close()
+
+@pytest.fixture()
+def app(engine, session):
+    app = create_app()
+    app.config.update({"TESTING": True, 'DATABASE_URI': str(engine.url)})
+    with patch('app.auth.routes.session', session):
+        yield app
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
