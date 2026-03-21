@@ -1,6 +1,18 @@
-from db_connection import Base
+from backend.db.db_connection import Base
 import enum
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, func, ForeignKey, CheckConstraint, Enum
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Numeric,
+    Date,
+    DateTime,
+    func,
+    ForeignKey,
+    CheckConstraint,
+    Enum,
+)
+
 
 class RoomType(enum.Enum):
     SINGLE = "SINGLE"
@@ -8,17 +20,25 @@ class RoomType(enum.Enum):
     TRIPLE = "TRIPLE"
     QUAD = "QUAD"
 
+
 class Status(enum.Enum):
     CONFIRMED = "CONFIRMED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    email = Column(String(100), CheckConstraint("email = lower(email)"), unique=True, nullable=False)
-    password = Column(String(255), nullable=False) # is longer to store w/ hashing
+    email = Column(
+        String(100),
+        CheckConstraint("email = lower(email)"),
+        unique=True,
+        nullable=False,
+    )
+    password = Column(String(255), nullable=False)  # is longer to store w/ hashing
     points = Column(Integer, nullable=False, default=0)
+
 
 class Hotel(Base):
     __tablename__ = "hotels"
@@ -27,7 +47,8 @@ class Hotel(Base):
     price_per_night = Column(Numeric(10, 2), nullable=False)
     city = Column(String(100), nullable=False)
     address = Column(String(100), unique=True, nullable=False)
-    rating = Column(Numeric, CheckConstraint('rating >= 0 AND rating <= 5'), default=0)
+    rating = Column(Numeric, CheckConstraint("rating >= 0 AND rating <= 5"), default=0)
+
 
 class HotelRoom(Base):
     __tablename__ = "hotel_rooms"
@@ -35,6 +56,7 @@ class HotelRoom(Base):
     hotel = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     room = Column(Integer, nullable=False)
     room_type = Column(Enum(RoomType), nullable=False)
+
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -46,7 +68,8 @@ class Booking(Base):
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
     status = Column(Enum(Status), default=Status.CONFIRMED)
-    created_at = Column(DateTime, server_default = func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -55,7 +78,10 @@ class Review(Base):
     hotel = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     title = Column(String(20), default="No title")
     content = Column(String(255), default="No content")
-    rating = Column(Integer, CheckConstraint('rating >= 1 AND rating <= 5'), nullable=False)
+    rating = Column(
+        Integer, CheckConstraint("rating >= 1 AND rating <= 5"), nullable=False
+    )
+
 
 class PointsTransaction(Base):
     __tablename__ = "points_transactions"
@@ -63,4 +89,4 @@ class PointsTransaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     booking_id = Column(Integer, ForeignKey("bookings.id"))
     points = Column(Integer, nullable=False)
-    recorded_at = Column(DateTime, server_default = func.now())
+    recorded_at = Column(DateTime, server_default=func.now())

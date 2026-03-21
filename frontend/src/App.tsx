@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Register from "./Register";
-import RewardsPage from "./RewardsPage";
-import CheckoutPage from "./CheckoutPage";
-import BookingConflictPage from "./BookingConflictWarning";
-import HotelDetailsPage from "./HotelDetailsPage";
+import Register from "./auth/Register";
+import RewardsPage from "./rewards/RewardsPage";
+import CheckoutPage from "./payment/CheckoutPage";
+import BookingConflictPage from "./mybooking/BookingConflictWarning";
+import HotelDetailsPage from "./hotel/HotelDetailsPage";
 
 export default function App() {
   return (
