@@ -9,6 +9,7 @@ class RoomType(enum.Enum):
     QUAD = "QUAD"
 
 class Status(enum.Enum):
+    INPROGRESS = "INPROGRESS"
     CONFIRMED = "CONFIRMED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
@@ -45,7 +46,7 @@ class Booking(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
-    status = Column(Enum(Status), default=Status.CONFIRMED)
+    status = Column(Enum(Status), default=Status.INPROGRESS)
     created_at = Column(DateTime, server_default = func.now())
 
 class Review(Base):
