@@ -1,11 +1,14 @@
 import React from "react";
 import HotelDetails from "./HotelDetails";
-import type { Hotel } from "./HotelDetails";
+import type { Hotel } from "../types/Hotel";
 
 const exampleHotel: Hotel = {
+  id: 1,
   name: "Seaside Resort",
   location: "Miami Beach, FL",
   rating: 4.5,
+  pricePerNight: 189,
+  amenities: ["wifi", "pool", "spa", "restaurant"],
   description:
     "A luxurious resort right on the beach, with world-class amenities and stunning ocean views.",
   photos: [
