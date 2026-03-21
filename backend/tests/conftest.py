@@ -3,26 +3,24 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-for var, val in [
-    ("DB_USERNAME", "test"),
-    ("DB_PASSWORD", "test"),
-    ("DB_HOST", "localhost"),
-    ("DB_PORT", "5432"),
-    ("DB_NAME", "test"),
-    ("DATABASE_URL", "sqlite:///:memory:"),
-]:
-    os.environ.setdefault(var, val)
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("DB_USERNAME", "test")
+os.environ.setdefault("DB_PASSWORD", "test")
+os.environ.setdefault("DB_HOST", "localhost")
+os.environ.setdefault("DB_PORT", "5432")
+os.environ.setdefault("DB_NAME", "test")
 
-from backend.db.db_connection import Base
-import backend.db.models  # noqa: F401 — ensure all models are registered
+from backend.db.db_connection import Base  # pylint: disable=wrong-import-position
+import backend.db.models  # noqa: F401  # pylint: disable=wrong-import-position,unused-import
 
 
 @pytest.fixture(scope="session")
 def engine():
+    """Create a shared in-memory SQLite engine for the test session."""
     eng = create_engine("sqlite:///:memory:")
 
     @event.listens_for(eng, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
+    def _set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-argument
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -33,15 +31,15 @@ def engine():
 
 
 @pytest.fixture()
-def session(engine):
+def session(engine):  # pylint: disable=redefined-outer-name
+    """Provide a transactional session that rolls back after each test."""
     connection = engine.connect()
     transaction = connection.begin()
-    Session = sessionmaker(bind=connection)
-    sess = Session()
+    test_session = sessionmaker(bind=connection)()
 
-    yield sess
+    yield test_session
 
-    sess.close()
+    test_session.close()
     if transaction.is_active:
         transaction.rollback()
     connection.close()
