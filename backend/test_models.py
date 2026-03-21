@@ -2,7 +2,7 @@ import pytest
 from datetime import date
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
-from models import User, Hotel, HotelRoom, Booking, Review, PointsTransaction
+from models import User, Hotel, HotelRoom, HotelPhoto, HotelAmenity, Booking, Review, PointsTransaction
 from models import RoomType, Status
 
 
@@ -145,6 +145,50 @@ class TestHotelRoom:
         session.add(HotelRoom(room=101, room_type=RoomType.SINGLE))
         with pytest.raises(IntegrityError):
             session.flush()
+
+
+class TestHotelPhoto:
+
+    def test_create_photo(self, session):
+        hotel = Hotel(
+            name="Photo Hotel",
+            price_per_night=Decimal("140.00"),
+            city="Seattle",
+            address="10 Pine St",
+        )
+        session.add(hotel)
+        session.flush()
+
+        photo = HotelPhoto(
+            hotel_id=hotel.id,
+            url="https://example.com/photo.jpg",
+            alt_text="Hotel exterior",
+        )
+        session.add(photo)
+        session.flush()
+
+        assert photo.id is not None
+        assert photo.hotel_id == hotel.id
+
+
+class TestHotelAmenity:
+
+    def test_create_amenity(self, session):
+        hotel = Hotel(
+            name="Amenity Hotel",
+            price_per_night=Decimal("150.00"),
+            city="San Diego",
+            address="20 Harbor Dr",
+        )
+        session.add(hotel)
+        session.flush()
+
+        amenity = HotelAmenity(hotel_id=hotel.id, name="Free WiFi")
+        session.add(amenity)
+        session.flush()
+
+        assert amenity.id is not None
+        assert amenity.name == "Free WiFi"
 
 
 # ── Book: Booking model ───────────────────────────────────────────────

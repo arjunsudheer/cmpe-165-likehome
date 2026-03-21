@@ -36,6 +36,21 @@ class HotelRoom(Base):
     room = Column(Integer, nullable=False)
     room_type = Column(Enum(RoomType), nullable=False)
 
+
+class HotelPhoto(Base):
+    __tablename__ = "hotel_photos"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
+    url = Column(String(255), nullable=False)
+    alt_text = Column(String(255), nullable=False, default="Hotel photo")
+
+
+class HotelAmenity(Base):
+    __tablename__ = "hotel_amenities"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
