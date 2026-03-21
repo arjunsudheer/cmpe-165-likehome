@@ -35,12 +35,12 @@ def verify_login(email, password):
             "user_id": user.id
         }
     
-def check_time_overlap(start_date, end_date, hotel):
+def check_time_overlap(start_date, end_date, hotel_id):
     with Session(engine) as session:
         stmt = (
             select(Booking.id).join(HotelRoom, Booking.room == HotelRoom.id)
             .join(Hotel, HotelRoom.hotel == Hotel.id)
-            .where(Booking.start_date < end_date, Booking.end_date > start_date, Hotel.name == hotel)
+            .where(Booking.start_date < end_date, Booking.end_date > start_date, Hotel.id == hotel_id)
         )
         result = session.execute(stmt)
         return result.scalars().first() is not None
