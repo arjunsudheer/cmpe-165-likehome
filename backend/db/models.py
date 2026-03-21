@@ -61,6 +61,7 @@ class HotelRoom(Base):
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
+    booking_number = Column(String(12), unique=True, nullable=False)
     title = Column(String(100), nullable=False)
     user = Column(Integer, ForeignKey("users.id"), nullable=False)
     room = Column(Integer, ForeignKey("hotel_rooms.id"), nullable=False)
