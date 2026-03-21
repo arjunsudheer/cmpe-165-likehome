@@ -3,6 +3,7 @@ import Register from "./Register";
 import RewardsPage from "./RewardsPage";
 import CheckoutPage from "./CheckoutPage";
 import BookingConflictPage from "./BookingConflictWarning";
+import HotelDetailsPage from "./HotelDetailsPage";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/conflict" element={<BookingConflictPage />} />
+        <Route path="/hotel" element={<HotelDetailsPage />} />
       </Routes>
     </BrowserRouter>
   );
