@@ -1,13 +1,6 @@
 import React from "react";
 import "./HotelDetails.css";
-
-export interface Hotel {
-  name: string;
-  location: string;
-  rating: number;
-  description: string;
-  photos?: string[];
-}
+import type { Hotel }from "../types/Hotel";
 
 interface HotelDetailsProps {
   hotel: Hotel | null;
