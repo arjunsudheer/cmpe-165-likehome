@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import HomePage from "./HomePage";
 import Register from "./auth/Register";
 import RewardsPage from "./rewards/RewardsPage";
 import CheckoutPage from "./payment/CheckoutPage";
@@ -9,7 +10,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Register />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/conflict" element={<BookingConflictPage />} />
