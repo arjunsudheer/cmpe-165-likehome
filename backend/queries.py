@@ -1,4 +1,4 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, exists
 from sqlalchemy.orm import Session
 from db_connection import engine
 from models import User, PointsTransaction, Booking, Status, HotelRoom, Hotel
@@ -35,12 +35,22 @@ def verify_login(email, password):
             "user_id": user.id
         }
     
-def check_time_overlap(start_date, end_date, hotel_id):
+def room_availability(start_date, end_date, hotel_id):
     with Session(engine) as session:
+        overlapping = (
+            select(Booking.id)
+            .where(Booking.room == HotelRoom.id, Booking.start_date < end_date, Booking.end_date > start_date,
+                or_(
+                    Booking.status == Status.INPROGRESS,
+                    Booking.status == Status.CONFIRMED
+                ))
+        )
         stmt = (
-            select(Booking.id).join(HotelRoom, Booking.room == HotelRoom.id)
-            .join(Hotel, HotelRoom.hotel == Hotel.id)
-            .where(Booking.start_date < end_date, Booking.end_date > start_date, Hotel.id == hotel_id)
+            select(HotelRoom.id)
+            .where(
+                HotelRoom.hotel == hotel_id,
+                ~exists(overlapping)
+            )
         )
         result = session.execute(stmt)
-        return result.scalars().first() is not None
+        return result.scalars().all()
