@@ -88,6 +88,19 @@ class TestHotel:
 
         assert hotel.rating == 0
 
+    def test_rating_can_store_average(self, session):
+        hotel = Hotel(
+            name="Average Rating Hotel",
+            price_per_night=Decimal("95.00"),
+            city="Sacramento",
+            address="123 Capitol Mall",
+            rating=Decimal("4.50"),
+        )
+        session.add(hotel)
+        session.flush()
+
+        assert hotel.rating == Decimal("4.50")
+
     def test_name_required(self, session):
         session.add(Hotel(
             price_per_night=Decimal("50.00"),

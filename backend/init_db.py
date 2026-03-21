@@ -1,4 +1,5 @@
 from db_connection import engine, Base
+from hotels.routes import refresh_hotel_rating
 from mock_hotels import (
     mock_hotel_amenities,
     mock_hotel_photos,
@@ -36,6 +37,12 @@ def init_tables_and_data():
         review = conn.execute(select(Review)).first()
         if review is None:
             mock_reviews(conn)
+
+    with engine.begin() as conn:
+        hotel_ids = [row.id for row in conn.execute(select(Hotel.id)).fetchall()]
+
+    for hotel_id in hotel_ids:
+        refresh_hotel_rating(hotel_id)
 
 if __name__ == "__main__":
     init_tables_and_data()
