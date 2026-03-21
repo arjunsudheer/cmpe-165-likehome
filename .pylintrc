@@ -1,0 +1,30 @@
+[MAIN]
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    redefined-outer-name,
+    unused-argument,
+    invalid-name,
+    wrong-import-position,
+    wrong-import-order,
+    import-outside-toplevel,
+    ungrouped-imports,
+    duplicate-code,
+    cyclic-import,
+    no-member,
+    not-callable,
+    trailing-whitespace,
+    line-too-long,
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-return-statements,
+    no-else-return,
+    unused-import,
+    import-error
+
+[FORMAT]
+max-line-length=120
