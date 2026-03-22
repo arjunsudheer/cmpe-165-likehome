@@ -1,0 +1,51 @@
+.hotel-details {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-family: sans-serif;
+}
+
+.hotel-name {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.hotel-location {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.hotel-rating {
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.hotel-description {
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+  color: #444;
+}
+
+.hotel-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.hotel-photo {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.3s;
+}
+
+.hotel-photo:hover {
+  transform: scale(1.05);
+}

@@ -1,6 +1,15 @@
-from db_connection import engine, Base
-from hotels.routes import refresh_hotel_rating
-from mock_hotels import (
+from sqlalchemy import select
+
+from backend.db.db_connection import Base, engine
+from backend.db.models import (
+    Hotel,
+    HotelAmenity,
+    HotelPhoto,
+    HotelRoom,
+    Review,
+    User,
+)
+from backend.db.mock_hotels import (
     mock_hotel_amenities,
     mock_hotel_photos,
     mock_hotel_rooms,
@@ -8,8 +17,8 @@ from mock_hotels import (
     mock_review_users,
     mock_reviews,
 )
-from sqlalchemy import select
-from models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User
+from backend.search.routes import refresh_hotel_rating
+
 
 def init_tables_and_data():
     Base.metadata.create_all(engine, checkfirst=True)
@@ -43,6 +52,7 @@ def init_tables_and_data():
 
     for hotel_id in hotel_ids:
         refresh_hotel_rating(hotel_id)
+
 
 if __name__ == "__main__":
     init_tables_and_data()

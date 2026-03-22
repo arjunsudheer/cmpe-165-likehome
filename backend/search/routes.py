@@ -4,9 +4,9 @@ from decimal import Decimal
 from flask import jsonify, request
 from sqlalchemy import func, select
 
-from db_connection import session
-from hotels import hotels_bp
-from models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User
+from backend.db.db_connection import session
+from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User
+from backend.search import search_bp
 
 
 def _parse_iso_date(value, field_name):
@@ -32,10 +32,10 @@ def _get_star_display(average_rating):
     return {
         "filled": filled_stars,
         "empty": 5 - filled_stars,
-        "label": "".join(["*" for _ in range(filled_stars)]) + "".join(["-" for _ in range(5 - filled_stars)]),
+        "label": ("*" * filled_stars) + ("-" * (5 - filled_stars)),
     }
 
-#calulate average review score
+
 def refresh_hotel_rating(hotel_id):
     average_rating = session.execute(
         select(func.avg(Review.rating)).where(Review.hotel == hotel_id)
@@ -50,7 +50,7 @@ def refresh_hotel_rating(hotel_id):
     return normalized_rating
 
 
-@hotels_bp.route("/search", methods=["GET"])
+@search_bp.route("/search", methods=["GET"])
 def search_hotels():
     destination = request.args.get("destination", "").strip()
     check_in_raw = request.args.get("check_in")
@@ -81,52 +81,43 @@ def search_hotels():
     )
     hotels = session.execute(stmt).scalars().all()
 
-    return jsonify(
-        {
-            "destination": destination,
-            "check_in": check_in.isoformat(),
-            "check_out": check_out.isoformat(),
-            "results": [
-                {
-                    "id": hotel.id,
-                    "name": hotel.name,
-                    "city": hotel.city,
-                    "address": hotel.address,
-                    "price_per_night": float(hotel.price_per_night),
-                    "rating": float(hotel.rating or 0),
-                }
-                for hotel in hotels
-            ],
-        }
-    ), 200
+    return (
+        jsonify(
+            {
+                "destination": destination,
+                "check_in": check_in.isoformat(),
+                "check_out": check_out.isoformat(),
+                "results": [
+                    {
+                        "id": hotel.id,
+                        "name": hotel.name,
+                        "city": hotel.city,
+                        "address": hotel.address,
+                        "price_per_night": float(hotel.price_per_night),
+                        "rating": float(hotel.rating or 0),
+                    }
+                    for hotel in hotels
+                ],
+            }
+        ),
+        200,
+    )
 
 
-@hotels_bp.route("/<int:hotel_id>", methods=["GET"])
+@search_bp.route("/<int:hotel_id>", methods=["GET"])
 def get_hotel_details(hotel_id):
     hotel = session.get(Hotel, hotel_id)
     if hotel is None:
         return jsonify({"error": "Hotel not found"}), 404
 
-    room_stmt = (
-        select(HotelRoom)
-        .where(HotelRoom.hotel == hotel_id)
-        .order_by(HotelRoom.room.asc())
-    )
-    photo_stmt = (
-        select(HotelPhoto)
-        .where(HotelPhoto.hotel_id == hotel_id)
-        .order_by(HotelPhoto.id.asc())
-    )
+    room_stmt = select(HotelRoom).where(HotelRoom.hotel == hotel_id).order_by(HotelRoom.room.asc())
+    photo_stmt = select(HotelPhoto).where(HotelPhoto.hotel_id == hotel_id).order_by(HotelPhoto.id.asc())
     amenity_stmt = (
         select(HotelAmenity)
         .where(HotelAmenity.hotel_id == hotel_id)
         .order_by(HotelAmenity.name.asc())
     )
-    review_stmt = (
-        select(Review)
-        .where(Review.hotel == hotel_id)
-        .order_by(Review.id.desc())
-    )
+    review_stmt = select(Review).where(Review.hotel == hotel_id).order_by(Review.id.desc())
 
     rooms = session.execute(room_stmt).scalars().all()
     photos = session.execute(photo_stmt).scalars().all()
@@ -147,41 +138,44 @@ def get_hotel_details(hotel_id):
         room_type_summary[room_type_name]["count"] += 1
         room_type_summary[room_type_name]["room_numbers"].append(room.room)
 
-    return jsonify(
-        {
-            "id": hotel.id,
-            "name": hotel.name,
-            "city": hotel.city,
-            "address": hotel.address,
-            "price_per_night": _serialize_decimal(hotel.price_per_night),
-            "rating": average_rating,
-            "review_count": len(reviews),
-            "star_display": star_display,
-            "photos": [
-                {
-                    "id": photo.id,
-                    "url": photo.url,
-                    "alt_text": photo.alt_text,
-                }
-                for photo in photos
-            ],
-            "room_types": list(room_type_summary.values()),
-            "amenities": [amenity.name for amenity in amenities],
-            "reviews": [
-                {
-                    "id": review.id,
-                    "user_id": review.user,
-                    "title": review.title,
-                    "content": review.content,
-                    "rating": review.rating,
-                }
-                for review in reviews
-            ],
-        }
-    ), 200
+    return (
+        jsonify(
+            {
+                "id": hotel.id,
+                "name": hotel.name,
+                "city": hotel.city,
+                "address": hotel.address,
+                "price_per_night": _serialize_decimal(hotel.price_per_night),
+                "rating": average_rating,
+                "review_count": len(reviews),
+                "star_display": star_display,
+                "photos": [
+                    {
+                        "id": photo.id,
+                        "url": photo.url,
+                        "alt_text": photo.alt_text,
+                    }
+                    for photo in photos
+                ],
+                "room_types": list(room_type_summary.values()),
+                "amenities": [amenity.name for amenity in amenities],
+                "reviews": [
+                    {
+                        "id": review.id,
+                        "user_id": review.user,
+                        "title": review.title,
+                        "content": review.content,
+                        "rating": review.rating,
+                    }
+                    for review in reviews
+                ],
+            }
+        ),
+        200,
+    )
 
-#saves the new review and updates the hotel rating
-@hotels_bp.route("/<int:hotel_id>/reviews", methods=["POST"])
+
+@search_bp.route("/<int:hotel_id>/reviews", methods=["POST"])
 def create_hotel_review(hotel_id):
     hotel = session.get(Hotel, hotel_id)
     if hotel is None:
@@ -221,18 +215,21 @@ def create_hotel_review(hotel_id):
 
     updated_rating = refresh_hotel_rating(hotel_id)
 
-    return jsonify(
-        {
-            "message": "Review created successfully",
-            "review": {
-                "id": review.id,
-                "user_id": review.user,
-                "hotel_id": review.hotel,
-                "title": review.title,
-                "content": review.content,
-                "rating": review.rating,
-            },
-            "hotel_rating": updated_rating,
-            "star_display": _get_star_display(updated_rating),
-        }
-    ), 201
+    return (
+        jsonify(
+            {
+                "message": "Review created successfully",
+                "review": {
+                    "id": review.id,
+                    "user_id": review.user,
+                    "hotel_id": review.hotel,
+                    "title": review.title,
+                    "content": review.content,
+                    "rating": review.rating,
+                },
+                "hotel_rating": updated_rating,
+                "star_display": _get_star_display(updated_rating),
+            }
+        ),
+        201,
+    )

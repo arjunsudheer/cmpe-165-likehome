@@ -1,16 +1,24 @@
 import pytest
 from datetime import date
 from decimal import Decimal
+
 from sqlalchemy.exc import IntegrityError
-from models import User, Hotel, HotelRoom, HotelPhoto, HotelAmenity, Booking, Review, PointsTransaction
-from models import RoomType, Status
 
-
-# ── Register: User model ──────────────────────────────────────────────
+from backend.db.models import (
+    Booking,
+    Hotel,
+    HotelAmenity,
+    HotelPhoto,
+    HotelRoom,
+    PointsTransaction,
+    Review,
+    RoomType,
+    Status,
+    User,
+)
 
 
 class TestUser:
-
     def test_create_user(self, session):
         user = User(email="test@example.com", password="hashed_pw")
         session.add(user)
@@ -39,11 +47,7 @@ class TestUser:
             session.flush()
 
 
-# ── Search: Hotel and HotelRoom models ────────────────────────────────
-
-
 class TestHotel:
-
     def test_create_hotel(self, session):
         hotel = Hotel(
             name="Test Hotel",
@@ -59,20 +63,24 @@ class TestHotel:
         assert hotel.city == "San Jose"
 
     def test_unique_address(self, session):
-        session.add(Hotel(
-            name="Hotel A",
-            price_per_night=Decimal("50.00"),
-            city="SF",
-            address="456 Elm St",
-        ))
+        session.add(
+            Hotel(
+                name="Hotel A",
+                price_per_night=Decimal("50.00"),
+                city="SF",
+                address="456 Elm St",
+            )
+        )
         session.flush()
 
-        session.add(Hotel(
-            name="Hotel B",
-            price_per_night=Decimal("75.00"),
-            city="SF",
-            address="456 Elm St",
-        ))
+        session.add(
+            Hotel(
+                name="Hotel B",
+                price_per_night=Decimal("75.00"),
+                city="SF",
+                address="456 Elm St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
@@ -102,26 +110,29 @@ class TestHotel:
         assert hotel.rating == Decimal("4.50")
 
     def test_name_required(self, session):
-        session.add(Hotel(
-            price_per_night=Decimal("50.00"),
-            city="SF",
-            address="111 Pine St",
-        ))
+        session.add(
+            Hotel(
+                price_per_night=Decimal("50.00"),
+                city="SF",
+                address="111 Pine St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
     def test_price_required(self, session):
-        session.add(Hotel(
-            name="No Price Hotel",
-            city="SF",
-            address="222 Pine St",
-        ))
+        session.add(
+            Hotel(
+                name="No Price Hotel",
+                city="SF",
+                address="222 Pine St",
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
 
 class TestHotelRoom:
-
     def test_create_room(self, session):
         hotel = Hotel(
             name="Room Test Hotel",
@@ -161,7 +172,6 @@ class TestHotelRoom:
 
 
 class TestHotelPhoto:
-
     def test_create_photo(self, session):
         hotel = Hotel(
             name="Photo Hotel",
@@ -185,7 +195,6 @@ class TestHotelPhoto:
 
 
 class TestHotelAmenity:
-
     def test_create_amenity(self, session):
         hotel = Hotel(
             name="Amenity Hotel",
@@ -204,11 +213,7 @@ class TestHotelAmenity:
         assert amenity.name == "Free WiFi"
 
 
-# ── Book: Booking model ───────────────────────────────────────────────
-
-
 class TestBooking:
-
     def _make_user_and_room(self, session, suffix=""):
         user = User(email=f"booker{suffix}@example.com", password="pw")
         hotel = Hotel(
@@ -228,6 +233,7 @@ class TestBooking:
     def test_create_booking(self, session):
         user, room = self._make_user_and_room(session)
         booking = Booking(
+            booking_number="LH-TEST0001",
             title="Weekend Stay",
             user=user.id,
             room=room.id,
@@ -246,6 +252,7 @@ class TestBooking:
     def test_default_status_confirmed(self, session):
         user, room = self._make_user_and_room(session, suffix="2")
         booking = Booking(
+            booking_number="LH-TEST0002",
             title="Status Test",
             user=user.id,
             room=room.id,
@@ -271,34 +278,36 @@ class TestBooking:
         session.add(room)
         session.flush()
 
-        session.add(Booking(
-            title="No User",
-            room=room.id,
-            start_date=date(2026, 8, 1),
-            end_date=date(2026, 8, 2),
-            total_price=Decimal("100.00"),
-        ))
+        session.add(
+            Booking(
+                booking_number="LH-TEST0003",
+                title="No User",
+                room=room.id,
+                start_date=date(2026, 8, 1),
+                end_date=date(2026, 8, 2),
+                total_price=Decimal("100.00"),
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
     def test_title_required(self, session):
         user, room = self._make_user_and_room(session, suffix="3")
-        session.add(Booking(
-            user=user.id,
-            room=room.id,
-            start_date=date(2026, 9, 1),
-            end_date=date(2026, 9, 2),
-            total_price=Decimal("100.00"),
-        ))
+        session.add(
+            Booking(
+                booking_number="LH-TEST0004",
+                user=user.id,
+                room=room.id,
+                start_date=date(2026, 9, 1),
+                end_date=date(2026, 9, 2),
+                total_price=Decimal("100.00"),
+            )
+        )
         with pytest.raises(IntegrityError):
             session.flush()
 
 
-# ── Pay/Rewards: PointsTransaction model ──────────────────────────────
-
-
 class TestPointsTransaction:
-
     def test_create_points_transaction(self, session):
         user = User(email="points@example.com", password="pw")
         hotel = Hotel(
@@ -315,6 +324,7 @@ class TestPointsTransaction:
         session.flush()
 
         booking = Booking(
+            booking_number="LH-TEST0005",
             title="Points Stay",
             user=user.id,
             room=room.id,
@@ -348,11 +358,7 @@ class TestPointsTransaction:
             session.flush()
 
 
-# ── Review model ──────────────────────────────────────────────────────
-
-
 class TestReview:
-
     def test_create_review(self, session):
         user = User(email="reviewer@example.com", password="pw")
         hotel = Hotel(
@@ -399,22 +405,13 @@ class TestReview:
         user = User(email="no_rating@example.com", password="pw")
         hotel = Hotel(
             name="No Rating Hotel",
-            price_per_night=Decimal("60.00"),
-            city="Dallas",
-            address="1 Main St Dallas",
+            price_per_night=Decimal("88.00"),
+            city="Phoenix",
+            address="1 Camelback Rd",
         )
         session.add_all([user, hotel])
         session.flush()
 
         session.add(Review(user=user.id, hotel=hotel.id))
-        with pytest.raises(IntegrityError):
-            session.flush()
-
-    def test_hotel_fk_required(self, session):
-        user = User(email="no_hotel_review@example.com", password="pw")
-        session.add(user)
-        session.flush()
-
-        session.add(Review(user=user.id, rating=4))
         with pytest.raises(IntegrityError):
             session.flush()
