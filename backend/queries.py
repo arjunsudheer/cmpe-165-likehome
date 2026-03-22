@@ -54,3 +54,10 @@ def room_availability(start_date, end_date, hotel_id):
         )
         result = session.execute(stmt)
         return result.scalars().all()
+    
+def start_booking(user_id, room_id, title, startDate, endDate):
+    with Session(engine) as session:
+        booking = Booking(user=user_id, room=room_id, start_date=startDate, end_date=endDate)
+        session.add(booking)
+        session.commit()
+        session.refresh(booking)
