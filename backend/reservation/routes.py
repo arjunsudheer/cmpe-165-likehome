@@ -130,7 +130,7 @@ def create_booking():
             end_date=end_date,
             total_price=total_price,
             status=Status.INPROGRESS,
-            expires_at=datetime.now() + timedelta(minutes=15)
+            expires_at=datetime.now() + timedelta(seconds=20)
         )
         session.add(booking)
         session.commit()
