@@ -8,7 +8,7 @@ from backend.auth import auth_bp
 from backend.auth.forms import validate_login, validate_registration
 from backend.db.db_connection import session
 from backend.db.models import User
-from backend import bcrypt
+from backend.extensions import bcrypt
 
 
 # registration endpoint US-A01.2, US-A01.3

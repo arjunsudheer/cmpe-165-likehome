@@ -1,4 +1,4 @@
-from backend import bcrypt
+from backend.extensions import bcrypt
 
 
 def hash_password(plain_password: str) -> str:

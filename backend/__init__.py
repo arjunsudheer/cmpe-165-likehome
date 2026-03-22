@@ -2,16 +2,15 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
-from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
 from backend.auth import auth_bp
+from backend.extensions import bcrypt
 from backend.reservation import reservation_bp
 from backend.search import search_bp
 
 load_dotenv()
-bcrypt = Bcrypt()
 
 
 def create_app():

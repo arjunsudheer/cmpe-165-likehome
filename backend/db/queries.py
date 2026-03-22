@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.db_connection import engine
 from backend.db.models import User, PointsTransaction, Booking, Status, HotelRoom
-from backend import bcrypt
+from backend.extensions import bcrypt
 
 
 def get_reward_points(user_id):
