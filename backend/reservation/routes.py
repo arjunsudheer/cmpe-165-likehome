@@ -64,9 +64,9 @@ def list_bookings():
 
 
 @reservation_bp.route("/", methods=["POST"])
-#@jwt_required()
+@jwt_required()
 def create_booking():
-    user_id = 1 #get_jwt_identity()
+    user_id = get_jwt_identity()
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON data"}), 400
