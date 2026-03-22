@@ -7,6 +7,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
 from backend.db.models import Booking, HotelRoom, Hotel, Status
+from backend.db.queries import room_availability
 
 
 def generate_booking_number():
@@ -238,3 +239,38 @@ def cancel_booking(booking_id):
             "message": "Booking cancelled",
             "booking_number": booking.booking_number,
         }), 200
+
+
+@reservation_bp.route("/availability", methods=["GET"])
+def get_available_rooms():
+    hotel_id = request.args.get("hotel_id", type=int)
+    start_str = request.args.get("start_date")
+    end_str = request.args.get("end_date")
+
+    if not all([hotel_id, start_str, end_str]):
+        return jsonify({"error": "hotel_id, start_date, and end_date are required"}), 400
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
+
+    if end_date <= start_date:
+        return jsonify({"error": "end_date must be after start_date"}), 400
+
+    available_room_ids = room_availability(start_date, end_date, hotel_id)
+
+    with Session(engine) as session:
+        rooms = session.execute(
+            select(HotelRoom).where(HotelRoom.id.in_(available_room_ids))
+        ).scalars().all()
+
+        return jsonify([
+            {
+                "id": r.id,
+                "room": r.room,
+                "room_type": r.room_type.value,
+            }
+            for r in rooms
+        ]), 200
