@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -92,7 +92,7 @@ def create_booking():
 
     with Session(engine) as session:
         room = session.execute(
-            select(HotelRoom).where(HotelRoom.id == room_id)
+            select(HotelRoom).where(HotelRoom.id == room_id).with_for_update()
         ).scalar_one_or_none()
         if not room:
             return jsonify({"error": "Room not found"}), 404
@@ -128,13 +128,14 @@ def create_booking():
             start_date=start_date,
             end_date=end_date,
             total_price=total_price,
-            status=Status.CONFIRMED,
+            status=Status.INPROGRESS,
+            expires_at=datetime.now() + timedelta(minutes=15)
         )
         session.add(booking)
         session.commit()
 
         return jsonify({
-            "message": "Booking confirmed",
+            "message": "Booking in progress, confirm within 15 minutes",
             "booking": {
                 "id": booking.id,
                 "booking_number": booking.booking_number,
@@ -145,8 +146,40 @@ def create_booking():
                 "end_date": booking.end_date.isoformat(),
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
+                "expires_at": booking.expires_at.isoformat(),
             },
         }), 201
+    
+@reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
+@jwt_required()
+def confirm_booking(booking_id):
+    user_id = get_jwt_identity()
+    with Session(engine) as session:
+        booking = session.execute(
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
+        ).scalar_one_or_none()
+
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+        if booking.status == Status.CANCELLED:
+            return jsonify({"error": "Booking has expired or been cancelled"}), 400
+        if booking.status == Status.CONFIRMED:
+            return jsonify({"error": "Booking is already confirmed"}), 400
+        if booking.expires_at < datetime.now():
+            booking.status = Status.CANCELLED
+            session.commit()
+            return jsonify({"error": "Booking has expired"}), 400
+
+        booking.status = Status.CONFIRMED
+        booking.expires_at = None
+        session.commit()
+
+        return jsonify({
+            "message": "Booking confirmed",
+            "booking_number": booking.booking_number,
+        }), 200
 
 
 @reservation_bp.route("/<int:booking_id>", methods=["GET"])

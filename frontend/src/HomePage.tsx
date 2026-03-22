@@ -76,7 +76,7 @@ export default function HomePage() {
     <div className="home">
       {/* Nav */}
       <nav className="nav">
-        <span className="nav-logo">JiggSaw Nights</span>
+        <span className="nav-logo">JigSaw Nights</span>
         <div className="nav-links">
           {/* temp route buttons - REMOVE ALL temp-links LATER */}
           <Link to="/register" className="temp-link">Register</Link>
@@ -167,7 +167,7 @@ export default function HomePage() {
 
       {/* Footer at bottom*/}
       <div className="footer">
-        JiggSaw Nights // CMPE 165 Project
+        JigSaw Nights // CMPE 165 Project
       </div>
     </div>
   );

@@ -71,6 +71,7 @@ class Booking(Base):
     total_price = Column(Numeric(10, 2), nullable=False)
     status = Column(Enum(Status), default=Status.INPROGRESS)
     created_at = Column(DateTime, server_default = func.now())
+    expires_at = Column(DateTime, nullable=True)
 
 class Review(Base):
     __tablename__ = "reviews"
