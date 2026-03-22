@@ -84,6 +84,7 @@ export default function HomePage() {
           <Link to="/checkout" className="temp-link">Checkout</Link>
           <Link to="/conflict" className="temp-link">Conflict</Link>
           <Link to="/hotel" className="temp-link">Hotel</Link>
+          <Link to="/booking" className="temp-link">Booking</Link>
           {/* real nav links */}
           <Link to="/register" className="signin-link">Sign In</Link>
         </div>
