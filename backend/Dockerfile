@@ -17,4 +17,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+CMD ["/bin/sh", "-c", "python init_db.py && python run.py"]
