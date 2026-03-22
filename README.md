@@ -1,6 +1,25 @@
 # cmpe-165-likehome
 This repository is dedicated to the LikeHome Project from the CMPE 165 class at SJSU.
 
+
+# Running the Application
+
+## With Docker
+
+1. Create your own ```.env``` by referencing ```.env.example```
+    - Only for the following variables, use these values:
+        ```.env
+        DB_HOST=db
+        DB_PORT=5432
+        ```
+        
+2. Run the application:
+```sh
+docker compose up -d --build
+```
+
+# Manual Setup
+
 ## Backend Setup
 
 1. Go to backend folder: 
@@ -23,6 +42,22 @@ This repository is dedicated to the LikeHome Project from the CMPE 165 class at 
 
 5. Run the server: 
     ```sh
-    python app.py
+    python -m backend.app
+    ```
+
+## Frontend Setup
+
+1. Go to frontend folder: 
+    ```sh
+    cd frontend
+    ```
+
+2. Install the required dependencies:
+    ```sh
+    npm install
     ```
     
+3. Run the frontend server: 
+    ```sh
+    npm run dev
+    ```
