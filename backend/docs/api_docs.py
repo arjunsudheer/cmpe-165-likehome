@@ -82,6 +82,7 @@ class BookingRequestSchema(ma.Schema):
 
 class BookingResponseSchema(ma.Schema):
     id = ma.fields.Integer(dump_only=True, metadata={"example": 1})
+    booking_number = ma.fields.String(metadata={"example": "LH-A1B2C3D4"})
     title = ma.fields.String(metadata={"example": "Weekend getaway"})
     user = ma.fields.Integer(metadata={"example": 1})
     room = ma.fields.Integer(metadata={"example": 1})

@@ -179,6 +179,7 @@ class TestBooking:
     def test_create_booking(self, session):
         user, room = self._make_user_and_room(session)
         booking = Booking(
+            booking_number="LH-TEST0001",
             title="Weekend Stay",
             user=user.id,
             room=room.id,
@@ -197,6 +198,7 @@ class TestBooking:
     def test_default_status_confirmed(self, session):
         user, room = self._make_user_and_room(session, suffix="2")
         booking = Booking(
+            booking_number="LH-TEST0002",
             title="Status Test",
             user=user.id,
             room=room.id,
@@ -224,6 +226,7 @@ class TestBooking:
 
         session.add(
             Booking(
+                booking_number="LH-TEST0003",
                 title="No User",
                 room=room.id,
                 start_date=date(2026, 8, 1),
@@ -238,6 +241,7 @@ class TestBooking:
         user, room = self._make_user_and_room(session, suffix="3")
         session.add(
             Booking(
+                booking_number="LH-TEST0004",
                 user=user.id,
                 room=room.id,
                 start_date=date(2026, 9, 1),
@@ -270,6 +274,7 @@ class TestPointsTransaction:
         session.flush()
 
         booking = Booking(
+            booking_number="LH-TEST0005",
             title="Points Stay",
             user=user.id,
             room=room.id,
