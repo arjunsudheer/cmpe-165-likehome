@@ -1,18 +1,9 @@
 import enum
 
 from sqlalchemy import (
-    CheckConstraint,
-    Column,
-    Date,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Integer,
-    Numeric,
-    String,
-    func,
+    CheckConstraint, Column, Date, DateTime,
+    Enum, ForeignKey, Integer, Numeric, String, func,
 )
-
 from backend.db.db_connection import Base
 
 
@@ -33,12 +24,8 @@ class Status(enum.Enum):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    email = Column(
-        String(100),
-        CheckConstraint("email = lower(email)"),
-        unique=True,
-        nullable=False,
-    )
+    name = Column(String(100), nullable=True)
+    email = Column(String(100), CheckConstraint("email = lower(email)"), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     points = Column(Integer, nullable=False, default=0)
 
@@ -58,7 +45,8 @@ class HotelRoom(Base):
     id = Column(Integer, primary_key=True)
     hotel = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     room = Column(Integer, nullable=False)
-    room_type = Column(Enum(RoomType), nullable=False)
+    # native_enum=False stores as VARCHAR — no PostgreSQL type sync needed
+    room_type = Column(Enum(RoomType, native_enum=False), nullable=False)
 
 
 class HotelPhoto(Base):
@@ -86,7 +74,8 @@ class Booking(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
-    status = Column(Enum(Status), default=Status.CONFIRMED)
+    # native_enum=False avoids the PostgreSQL enum type going out of sync
+    status = Column(Enum(Status, native_enum=False), default=Status.CONFIRMED)
     created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=True)
 
@@ -98,9 +87,7 @@ class Review(Base):
     hotel = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     title = Column(String(20), default="No title")
     content = Column(String(255), default="No content")
-    rating = Column(
-        Integer, CheckConstraint("rating >= 1 AND rating <= 5"), nullable=False
-    )
+    rating = Column(Integer, CheckConstraint("rating >= 1 AND rating <= 5"), nullable=False)
 
 
 class PointsTransaction(Base):

@@ -1,0 +1,194 @@
+/* Full-width hotel details page */
+.hdp { padding-bottom: 80px; }
+
+/* Gallery */
+.hdp-gallery { background: #0f172a; }
+
+.hdp-main-photo { width: 100%; height: 420px; overflow: hidden; }
+.hdp-main-photo img { width: 100%; height: 100%; object-fit: cover; }
+.hdp-photo-placeholder { width: 100%; height: 420px; }
+
+/* Thumbnail strip */
+.hdp-thumbs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 32px;
+  overflow-x: auto;
+  background: #0f172a;
+}
+
+.hdp-thumb {
+  flex-shrink: 0;
+  width: 80px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  transition: border-color .15s;
+}
+
+.hdp-thumb.active { border-color: var(--c-primary); }
+.hdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Content body */
+.hdp-body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 36px 32px 60px;
+}
+
+/* Title + reserve block */
+.hdp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  margin-bottom: 36px;
+}
+
+.hdp-name { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
+.hdp-location { font-size: 15px; color: var(--c-text-muted); margin-bottom: 10px; }
+
+.hdp-rating-row { display: flex; align-items: center; gap: 8px; }
+.stars { display: inline-flex; gap: 2px; }
+.star { color: #d1d5db; font-size: 16px; }
+.star.filled { color: #f59e0b; }
+.hdp-rating-num { font-size: 16px; font-weight: 700; }
+.hdp-review-count { font-size: 14px; color: var(--c-text-muted); }
+
+/* Reserve block */
+.hdp-reserve-block { text-align: right; flex-shrink: 0; }
+.hdp-price { margin-bottom: 14px; }
+.hdp-price-num { font-size: 36px; font-weight: 800; }
+.hdp-price-label { font-size: 16px; color: var(--c-text-muted); }
+.hdp-reserve-btn { width: 100%; font-size: 16px; padding: 14px 28px; }
+.hdp-login-hint { font-size: 12px; color: var(--c-text-light); margin-top: 8px; }
+
+/* Two-column info grid */
+.hdp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.hdp-section {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+}
+
+/* Reviews span full width */
+.hdp-section-full { grid-column: 1 / -1; }
+
+.hdp-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hdp-review-badge {
+  font-size: 13px;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+
+/* Amenities */
+.hdp-amenities {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.hdp-amenity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 9px 12px;
+  background: var(--c-bg);
+  border-radius: var(--radius-md);
+}
+
+.hdp-amenity-icon { font-size: 18px; }
+
+/* Room type cards */
+.hdp-rooms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+.hdp-room-card {
+  padding: 14px 16px;
+  background: var(--c-bg);
+  border-radius: var(--radius-md);
+}
+
+.hdp-room-type { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.hdp-room-avail { font-size: 12px; color: var(--c-text-muted); margin-bottom: 6px; }
+.hdp-room-price { font-size: 16px; font-weight: 800; color: var(--c-primary); }
+.hdp-room-price span { font-size: 12px; font-weight: 400; color: var(--c-text-muted); }
+
+/* Reviews list */
+.hdp-no-reviews { font-size: 14px; color: var(--c-text-muted); }
+.hdp-reviews { display: flex; flex-direction: column; gap: 14px; }
+
+.hdp-review {
+  padding: 14px 16px;
+  background: var(--c-bg);
+  border-radius: var(--radius-md);
+}
+
+.hdp-review-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.hdp-review-title { font-size: 14px; font-weight: 700; display: block; margin-bottom: 3px; }
+.hdp-review-user { font-size: 12px; color: var(--c-text-light); white-space: nowrap; }
+.hdp-review-content { font-size: 13px; color: var(--c-text-muted); line-height: 1.5; }
+
+/* Sticky reserve bottom bar */
+.hdp-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  background: white;
+  border-top: 1px solid var(--c-border);
+  box-shadow: 0 -4px 16px rgba(0,0,0,.07);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 40px;
+}
+
+.hdp-sticky-price { font-size: 22px; font-weight: 800; }
+.hdp-sticky-price span { font-size: 14px; font-weight: 400; color: var(--c-text-muted); }
+
+/* Loading / error states */
+.hdp-loading { padding: 48px 40px; display: flex; flex-direction: column; gap: 16px; }
+.hdp-skeleton { height: 420px; background: #e2e8f0; border-radius: var(--radius-lg); animation: skeleton-sweep 1.4s infinite; }
+.hdp-skeleton-short { height: 200px; }
+.hdp-error { margin: 40px; }
+
+@keyframes skeleton-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 860px) {
+  .hdp-header { flex-direction: column; }
+  .hdp-reserve-block { text-align: left; width: 100%; }
+  .hdp-grid { grid-template-columns: 1fr; }
+  .hdp-body { padding: 24px 16px 80px; }
+}

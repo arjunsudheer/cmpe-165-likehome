@@ -1,0 +1,124 @@
+/* Sidebar filter panel card */
+.filter-panel {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: calc(var(--navbar-h) + 16px);
+}
+
+/* Header row with title and clear link */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.filter-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.filter-reset {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.filter-reset:hover { text-decoration: underline; }
+
+/* Each filter block */
+.filter-section {
+  padding: 16px 0;
+  border-top: 1px solid var(--c-border);
+}
+
+.filter-section-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--c-text-muted);
+  margin-bottom: 12px;
+}
+
+.filter-value {
+  font-weight: 700;
+  color: var(--c-primary);
+}
+
+/* Range slider */
+.filter-range {
+  width: 100%;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+.filter-range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--c-text-light);
+  margin-top: 6px;
+}
+
+/* Star rating button row */
+.filter-stars {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-star-btn {
+  padding: 5px 10px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: white;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.filter-star-btn:hover { border-color: var(--c-primary); color: var(--c-primary); }
+.filter-star-btn.active { background: var(--c-primary-light); border-color: var(--c-primary); color: var(--c-primary); }
+
+/* Amenity checkbox list */
+.filter-amenity-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-checkbox-label input[type="checkbox"] {
+  accent-color: var(--c-primary);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
