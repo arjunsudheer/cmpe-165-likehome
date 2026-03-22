@@ -1,17 +1,19 @@
-from backend.db.db_connection import Base
 import enum
+
 from sqlalchemy import (
+    CheckConstraint,
     Column,
-    Integer,
-    String,
-    Numeric,
     Date,
     DateTime,
-    func,
-    ForeignKey,
-    CheckConstraint,
     Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    func,
 )
+
+from backend.db.db_connection import Base
 
 
 class RoomType(enum.Enum):
@@ -37,7 +39,7 @@ class User(Base):
         unique=True,
         nullable=False,
     )
-    password = Column(String(255), nullable=False)  # is longer to store w/ hashing
+    password = Column(String(255), nullable=False)
     points = Column(Integer, nullable=False, default=0)
 
 
@@ -59,6 +61,21 @@ class HotelRoom(Base):
     room_type = Column(Enum(RoomType), nullable=False)
 
 
+class HotelPhoto(Base):
+    __tablename__ = "hotel_photos"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
+    url = Column(String(255), nullable=False)
+    alt_text = Column(String(255), nullable=False, default="Hotel photo")
+
+
+class HotelAmenity(Base):
+    __tablename__ = "hotel_amenities"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+
+
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
@@ -69,9 +86,10 @@ class Booking(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
-    status = Column(Enum(Status), default=Status.INPROGRESS)
-    created_at = Column(DateTime, server_default = func.now())
+    status = Column(Enum(Status), default=Status.CONFIRMED)
+    created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=True)
+
 
 class Review(Base):
     __tablename__ = "reviews"

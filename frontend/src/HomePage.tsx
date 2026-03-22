@@ -1,75 +1,93 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import HotelFilter from "./hotel/HotelFilter";
 import type { Hotel } from "./types/Hotel";
 import "./HomePage.css";
 
-const MOCK_HOTELS: Hotel[] = [
-  {
-    id: 1,
-    name: "The Grand Palace",
-    location: "San Francisco",
-    rating: 4.8,
-    description: "Luxury hotel in the heart of the city",
-    pricePerNight: 129,
-    amenities: ["wifi", "pool", "gym", "restaurant"],
-  },
-  {
-    id: 2,
-    name: "Seaside Resort",
-    location: "Santa Cruz",
-    rating: 4.6,
-    description: "Beachfront resort with ocean views",
-    pricePerNight: 189,
-    amenities: ["wifi", "pool", "spa", "parking", "pet-friendly"],
-  },
-  {
-    id: 3,
-    name: "Mountain View Lodge",
-    location: "Lake Tahoe",
-    rating: 4.7,
-    description: "Cozy lodge surrounded by nature",
-    pricePerNight: 159,
-    amenities: ["wifi", "parking", "restaurant", "pet-friendly"],
-  },
-  {
-    id: 4,
-    name: "Budget Inn Downtown",
-    location: "San Jose",
-    rating: 3.5,
-    description: "Affordable stay near downtown",
-    pricePerNight: 69,
-    amenities: ["wifi", "parking"],
-  },
-  {
-    id: 5,
-    name: "The Ritz Plaza",
-    location: "Napa Valley",
-    rating: 5.0,
-    description: "Five star luxury with vineyard views",
-    pricePerNight: 349,
-    amenities: ["wifi", "pool", "spa", "gym", "restaurant", "parking"],
-  },
-  {
-    id: 6,
-    name: "Coastal Breeze Inn",
-    location: "Monterey",
-    rating: 4.3,
-    description: "Charming inn steps from the beach",
-    pricePerNight: 109,
-    amenities: ["wifi", "parking", "pet-friendly"],
-  },
-];
+type SearchResponse = {
+  results: Array<{
+    id: number;
+    name: string;
+    city: string;
+    address: string;
+    price_per_night: number;
+    rating: number;
+  }>;
+};
+
+function toHotel(result: SearchResponse["results"][number]): Hotel {
+  return {
+    id: result.id,
+    name: result.name,
+    location: result.city,
+    address: result.address,
+    rating: result.rating,
+    description: `${result.name} in ${result.city}`,
+    pricePerNight: result.price_per_night,
+    amenities: [],
+  };
+}
 
 export default function HomePage() {
   const [destination, setDestination] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState("1");
-  const [displayedHotels, setDisplayedHotels] = useState<Hotel[]>(MOCK_HOTELS);
+  const [searchResults, setSearchResults] = useState<Hotel[]>([]);
+  const [displayedHotels, setDisplayedHotels] = useState<Hotel[]>([]);
+  const [status, setStatus] = useState("Enter a destination and dates to search hotels.");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFilter = (filtered: Hotel[]) => {
     setDisplayedHotels(filtered);
+  };
+
+  const canSearch = useMemo(
+    () => Boolean(destination.trim() && checkIn && checkOut),
+    [checkIn, checkOut, destination],
+  );
+
+  const handleSearch = async () => {
+    if (!canSearch) {
+      setStatus("Destination, check-in, and check-out are required.");
+      return;
+    }
+
+    setIsLoading(true);
+    setStatus("");
+
+    try {
+      const params = new URLSearchParams({
+        destination: destination.trim(),
+        check_in: checkIn,
+        check_out: checkOut,
+      });
+      const res = await fetch(`/hotels/search?${params.toString()}`);
+      const data = (await res.json()) as SearchResponse | { error?: string };
+
+      if (!res.ok) {
+        setSearchResults([]);
+        setDisplayedHotels([]);
+        setStatus(data && "error" in data ? data.error || "Search failed." : "Search failed.");
+        return;
+      }
+
+      const hotels = (data as SearchResponse).results.map(toHotel);
+      setSearchResults(hotels);
+      setDisplayedHotels(hotels);
+      setStatus(
+        hotels.length > 0
+          ? `Found ${hotels.length} hotel${hotels.length === 1 ? "" : "s"} in ${destination.trim()}.`
+          : `No hotels found in ${destination.trim()}.`,
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setSearchResults([]);
+      setDisplayedHotels([]);
+      setStatus(`Network error: ${message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -83,7 +101,7 @@ export default function HomePage() {
           <Link to="/rewards" className="temp-link">Rewards</Link>
           <Link to="/checkout" className="temp-link">Checkout</Link>
           <Link to="/conflict" className="temp-link">Conflict</Link>
-          <Link to="/hotel" className="temp-link">Hotel</Link>
+          <Link to="/hotel/1" className="temp-link">Hotel</Link>
           <Link to="/booking" className="temp-link">Booking</Link>
           {/* real nav links */}
           <Link to="/register" className="signin-link">Sign In</Link>
@@ -117,8 +135,11 @@ export default function HomePage() {
               <option>4</option>
             </select>
           </div>
-          <button className="search-btn">Search</button>
+          <button className="search-btn" onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? "Searching..." : "Search"}
+          </button>
         </div>
+        <p className="hero-subtitle">{status}</p>
       </div>
 
       {/* Hotels Section */}
@@ -128,7 +149,7 @@ export default function HomePage() {
 
         <div className="layout">
           <aside className="sidebar">
-            <HotelFilter hotels={MOCK_HOTELS} onFilter={handleFilter} />
+            <HotelFilter hotels={searchResults} onFilter={handleFilter} />
           </aside>
 
           {/*hotel grid */}
@@ -138,7 +159,7 @@ export default function HomePage() {
             ) : (
               <div className="hotel-grid">
                 {displayedHotels.map(hotel => (
-                  <div key={hotel.id} className="hotel-card">
+                  <Link key={hotel.id} to={`/hotel/${hotel.id}`} className="hotel-card">
                     <div className="hotel-image" />
                     <div className="hotel-info">
                       <div className="hotel-top">
@@ -149,16 +170,19 @@ export default function HomePage() {
                         <span className="hotel-rating">{hotel.rating}</span>
                       </div>
                       <p className="hotel-desc">{hotel.description}</p>
-                      <div className="hotel-amenities">
-                        {hotel.amenities.map(a => (
-                          <span key={a} className="amenity-tag">{a}</span>
-                        ))}
-                      </div>
+                      {hotel.address && <p className="hotel-desc">{hotel.address}</p>}
+                      {hotel.amenities.length > 0 && (
+                        <div className="hotel-amenities">
+                          {hotel.amenities.map(a => (
+                            <span key={a} className="amenity-tag">{a}</span>
+                          ))}
+                        </div>
+                      )}
                       <p className="hotel-price">
                         ${hotel.pricePerNight} <span className="per-night">/ night</span>
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
