@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -7,6 +7,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
 from backend.db.models import Booking, HotelRoom, Hotel, Status
+from backend.db.queries import room_availability
 
 
 def generate_booking_number():
@@ -63,9 +64,9 @@ def list_bookings():
 
 
 @reservation_bp.route("/", methods=["POST"])
-@jwt_required()
+#@jwt_required()
 def create_booking():
-    user_id = get_jwt_identity()
+    user_id = 1 #get_jwt_identity()
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON data"}), 400
@@ -92,7 +93,7 @@ def create_booking():
 
     with Session(engine) as session:
         room = session.execute(
-            select(HotelRoom).where(HotelRoom.id == room_id)
+            select(HotelRoom).where(HotelRoom.id == room_id).with_for_update()
         ).scalar_one_or_none()
         if not room:
             return jsonify({"error": "Room not found"}), 404
@@ -128,13 +129,14 @@ def create_booking():
             start_date=start_date,
             end_date=end_date,
             total_price=total_price,
-            status=Status.CONFIRMED,
+            status=Status.INPROGRESS,
+            expires_at=datetime.now() + timedelta(minutes=15)
         )
         session.add(booking)
         session.commit()
 
         return jsonify({
-            "message": "Booking confirmed",
+            "message": "Booking in progress, confirm within 15 minutes",
             "booking": {
                 "id": booking.id,
                 "booking_number": booking.booking_number,
@@ -145,8 +147,40 @@ def create_booking():
                 "end_date": booking.end_date.isoformat(),
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
+                "expires_at": booking.expires_at.isoformat(),
             },
         }), 201
+    
+@reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
+@jwt_required()
+def confirm_booking(booking_id):
+    user_id = get_jwt_identity()
+    with Session(engine) as session:
+        booking = session.execute(
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
+        ).scalar_one_or_none()
+
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+        if booking.status == Status.CANCELLED:
+            return jsonify({"error": "Booking has expired or been cancelled"}), 400
+        if booking.status == Status.CONFIRMED:
+            return jsonify({"error": "Booking is already confirmed"}), 400
+        if booking.expires_at < datetime.now():
+            booking.status = Status.CANCELLED
+            session.commit()
+            return jsonify({"error": "Booking has expired"}), 400
+
+        booking.status = Status.CONFIRMED
+        booking.expires_at = None
+        session.commit()
+
+        return jsonify({
+            "message": "Booking confirmed",
+            "booking_number": booking.booking_number,
+        }), 200
 
 
 @reservation_bp.route("/<int:booking_id>", methods=["GET"])
@@ -205,3 +239,38 @@ def cancel_booking(booking_id):
             "message": "Booking cancelled",
             "booking_number": booking.booking_number,
         }), 200
+
+
+@reservation_bp.route("/availability", methods=["GET"])
+def get_available_rooms():
+    hotel_id = request.args.get("hotel_id", type=int)
+    start_str = request.args.get("start_date")
+    end_str = request.args.get("end_date")
+
+    if not all([hotel_id, start_str, end_str]):
+        return jsonify({"error": "hotel_id, start_date, and end_date are required"}), 400
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
+
+    if end_date <= start_date:
+        return jsonify({"error": "end_date must be after start_date"}), 400
+
+    available_room_ids = room_availability(start_date, end_date, hotel_id)
+
+    with Session(engine) as session:
+        rooms = session.execute(
+            select(HotelRoom).where(HotelRoom.id.in_(available_room_ids))
+        ).scalars().all()
+
+        return jsonify([
+            {
+                "id": r.id,
+                "room": r.room,
+                "room_type": r.room_type.value,
+            }
+            for r in rooms
+        ]), 200

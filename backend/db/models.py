@@ -22,6 +22,7 @@ class RoomType(enum.Enum):
 
 
 class Status(enum.Enum):
+    INPROGRESS = "INPROGRESS"
     CONFIRMED = "CONFIRMED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
@@ -68,9 +69,9 @@ class Booking(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
-    status = Column(Enum(Status), default=Status.CONFIRMED)
-    created_at = Column(DateTime, server_default=func.now())
-
+    status = Column(Enum(Status), default=Status.INPROGRESS)
+    created_at = Column(DateTime, server_default = func.now())
+    expires_at = Column(DateTime, nullable=True)
 
 class Review(Base):
     __tablename__ = "reviews"

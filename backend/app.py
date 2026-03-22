@@ -4,9 +4,9 @@ from flask_smorest import Api
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
+from backend.scheduler import start_scheduler
 
 load_dotenv()
-
 
 def create_app():
     app = Flask(__name__)
@@ -42,6 +42,8 @@ def create_app():
     api.register_blueprint(payments_bp, url_prefix="/api/payments")
     api.register_blueprint(rewards_bp, url_prefix="/api/rewards")
     app.register_blueprint(reservation_bp, url_prefix="/api/reservations")
+
+    start_scheduler()
 
     return app
 
