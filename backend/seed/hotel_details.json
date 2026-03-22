@@ -1,0 +1,66 @@
+{
+  "amenity_sets": [
+    ["Free WiFi", "Pool", "Fitness Center", "Parking", "Breakfast Included"],
+    ["Free WiFi", "Spa", "Airport Shuttle", "Restaurant", "Pet Friendly"],
+    ["Free WiFi", "Beach Access", "Bar", "Parking", "Family Rooms"],
+    ["Free WiFi", "Business Center", "Room Service", "Gym", "Laundry Service"]
+  ],
+  "photo_sets": [
+    [
+      {
+        "url": "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+        "alt_text": "Hotel lobby"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa",
+        "alt_text": "Hotel room"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8",
+        "alt_text": "Hotel exterior"
+      }
+    ],
+    [
+      {
+        "url": "https://images.unsplash.com/photo-1578683010236-d716f9a3f461",
+        "alt_text": "Luxury suite"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85",
+        "alt_text": "King bed room"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1455587734955-081b22074882",
+        "alt_text": "Hotel restaurant"
+      }
+    ],
+    [
+      {
+        "url": "https://images.unsplash.com/photo-1445019980597-93fa8acb246c",
+        "alt_text": "Resort pool"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4",
+        "alt_text": "Beachfront view"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+        "alt_text": "Balcony seating"
+      }
+    ],
+    [
+      {
+        "url": "https://images.unsplash.com/photo-1496417263034-38ec4f0b665a",
+        "alt_text": "Modern hotel room"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd",
+        "alt_text": "Hotel lounge"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1505692952047-1a78307da8f2",
+        "alt_text": "Executive suite"
+      }
+    ]
+  ]
+}

@@ -9,19 +9,15 @@ export default defineConfig({
         target: "http://localhost:5000",
         changeOrigin: true,
       },
-      "/reservation": {
+      "/reservations": {
         target: "http://localhost:5000",
         changeOrigin: true,
       },
-      "/payment": {
+      "/hotels": {
         target: "http://localhost:5000",
         changeOrigin: true,
       },
-      "/search": {
-        target: "http://localhost:5000",
-        changeOrigin: true,
-      },
-      "/db": {
+      "/api": {
         target: "http://localhost:5000",
         changeOrigin: true,
       },

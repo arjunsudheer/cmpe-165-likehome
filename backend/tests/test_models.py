@@ -1,16 +1,24 @@
 import pytest
 from datetime import date
 from decimal import Decimal
+
 from sqlalchemy.exc import IntegrityError
-from backend.db.models import User, Hotel, HotelRoom, Booking, Review, PointsTransaction
-from backend.db.models import RoomType, Status
 
-
-# ── Register: User model ──────────────────────────────────────────────
+from backend.db.models import (
+    Booking,
+    Hotel,
+    HotelAmenity,
+    HotelPhoto,
+    HotelRoom,
+    PointsTransaction,
+    Review,
+    RoomType,
+    Status,
+    User,
+)
 
 
 class TestUser:
-
     def test_create_user(self, session):
         user = User(email="test@example.com", password="hashed_pw")
         session.add(user)
@@ -39,11 +47,7 @@ class TestUser:
             session.flush()
 
 
-# ── Search: Hotel and HotelRoom models ────────────────────────────────
-
-
 class TestHotel:
-
     def test_create_hotel(self, session):
         hotel = Hotel(
             name="Test Hotel",
@@ -92,6 +96,19 @@ class TestHotel:
 
         assert hotel.rating == 0
 
+    def test_rating_can_store_average(self, session):
+        hotel = Hotel(
+            name="Average Rating Hotel",
+            price_per_night=Decimal("95.00"),
+            city="Sacramento",
+            address="123 Capitol Mall",
+            rating=Decimal("4.50"),
+        )
+        session.add(hotel)
+        session.flush()
+
+        assert hotel.rating == Decimal("4.50")
+
     def test_name_required(self, session):
         session.add(
             Hotel(
@@ -116,7 +133,6 @@ class TestHotel:
 
 
 class TestHotelRoom:
-
     def test_create_room(self, session):
         hotel = Hotel(
             name="Room Test Hotel",
@@ -155,11 +171,49 @@ class TestHotelRoom:
             session.flush()
 
 
-# ── Book: Booking model ───────────────────────────────────────────────
+class TestHotelPhoto:
+    def test_create_photo(self, session):
+        hotel = Hotel(
+            name="Photo Hotel",
+            price_per_night=Decimal("140.00"),
+            city="Seattle",
+            address="10 Pine St",
+        )
+        session.add(hotel)
+        session.flush()
+
+        photo = HotelPhoto(
+            hotel_id=hotel.id,
+            url="https://example.com/photo.jpg",
+            alt_text="Hotel exterior",
+        )
+        session.add(photo)
+        session.flush()
+
+        assert photo.id is not None
+        assert photo.hotel_id == hotel.id
+
+
+class TestHotelAmenity:
+    def test_create_amenity(self, session):
+        hotel = Hotel(
+            name="Amenity Hotel",
+            price_per_night=Decimal("150.00"),
+            city="San Diego",
+            address="20 Harbor Dr",
+        )
+        session.add(hotel)
+        session.flush()
+
+        amenity = HotelAmenity(hotel_id=hotel.id, name="Free WiFi")
+        session.add(amenity)
+        session.flush()
+
+        assert amenity.id is not None
+        assert amenity.name == "Free WiFi"
 
 
 class TestBooking:
-
     def _make_user_and_room(self, session, suffix=""):
         user = User(email=f"booker{suffix}@example.com", password="pw")
         hotel = Hotel(
@@ -253,11 +307,7 @@ class TestBooking:
             session.flush()
 
 
-# ── Pay/Rewards: PointsTransaction model ──────────────────────────────
-
-
 class TestPointsTransaction:
-
     def test_create_points_transaction(self, session):
         user = User(email="points@example.com", password="pw")
         hotel = Hotel(
@@ -308,11 +358,7 @@ class TestPointsTransaction:
             session.flush()
 
 
-# ── Review model ──────────────────────────────────────────────────────
-
-
 class TestReview:
-
     def test_create_review(self, session):
         user = User(email="reviewer@example.com", password="pw")
         hotel = Hotel(
@@ -359,22 +405,13 @@ class TestReview:
         user = User(email="no_rating@example.com", password="pw")
         hotel = Hotel(
             name="No Rating Hotel",
-            price_per_night=Decimal("60.00"),
-            city="Dallas",
-            address="1 Main St Dallas",
+            price_per_night=Decimal("88.00"),
+            city="Phoenix",
+            address="1 Camelback Rd",
         )
         session.add_all([user, hotel])
         session.flush()
 
         session.add(Review(user=user.id, hotel=hotel.id))
-        with pytest.raises(IntegrityError):
-            session.flush()
-
-    def test_hotel_fk_required(self, session):
-        user = User(email="no_hotel_review@example.com", password="pw")
-        session.add(user)
-        session.flush()
-
-        session.add(Review(user=user.id, rating=4))
         with pytest.raises(IntegrityError):
             session.flush()

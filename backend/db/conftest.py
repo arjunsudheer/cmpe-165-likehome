@@ -2,8 +2,8 @@ import os
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from backend import create_app
 from unittest.mock import patch
+from backend import create_app
 
 # set fallback env vars so db_connection.py doesn't crash on import
 for var, val in [
@@ -12,6 +12,7 @@ for var, val in [
     ("DB_HOST", "localhost"),
     ("DB_PORT", "5432"),
     ("DB_NAME", "test"),
+    ("DATABASE_URL", "sqlite:///:memory:"),
 ]:
     os.environ.setdefault(var, val)
 

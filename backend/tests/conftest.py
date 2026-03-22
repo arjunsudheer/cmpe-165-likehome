@@ -11,9 +11,9 @@ os.environ.setdefault("DB_HOST", "localhost")
 os.environ.setdefault("DB_PORT", "5432")
 os.environ.setdefault("DB_NAME", "test")
 
-from backend.db.db_connection import Base
 from backend import create_app
-import backend.db.models  # noqa: F401
+from backend.db.db_connection import Base
+import backend.db.models
 
 
 @pytest.fixture(scope="session")
