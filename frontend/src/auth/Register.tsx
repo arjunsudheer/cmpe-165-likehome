@@ -34,7 +34,7 @@ export default function Register() {
     if (!validate()) return;
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch("/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

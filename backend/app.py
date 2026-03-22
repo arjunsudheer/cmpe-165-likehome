@@ -27,13 +27,21 @@ def create_app():
 
     api = Api(app)
 
-    from api_docs import auth_bp, hotels_bp, bookings_bp, payments_bp, rewards_bp
+    from backend.docs.api_docs import (
+        auth_bp,
+        hotels_bp,
+        bookings_bp,
+        payments_bp,
+        rewards_bp,
+    )
+    from backend.reservation import reservation_bp
 
     api.register_blueprint(auth_bp, url_prefix="/api/auth")
     api.register_blueprint(hotels_bp, url_prefix="/api/hotels")
     api.register_blueprint(bookings_bp, url_prefix="/api/bookings")
     api.register_blueprint(payments_bp, url_prefix="/api/payments")
     api.register_blueprint(rewards_bp, url_prefix="/api/rewards")
+    app.register_blueprint(reservation_bp, url_prefix="/api/reservations")
 
     return app
 
