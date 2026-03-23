@@ -1,38 +1,27 @@
 from backend.db.queries import get_overlapping_booking_dates
-from sqlalchemy.orm import Session
 from sqlalchemy import delete
-from backend.db.db_connection import engine
 from backend.db.models import Booking, User, HotelRoom, Hotel, RoomType
 from datetime import date
+import pytest
 
 class TestBooking:
-    def __init__(self):
-        self.user_id = None 
-        self.booking_id = None
 
-    def setup_method(self):
-        with Session(engine) as session:
-            session.execute(delete(Booking))
-            session.execute(delete(User))
-            session.execute(delete(HotelRoom))
-            session.execute(delete(Hotel))
-            session.commit()
-        with Session(engine) as session:
-            user = User(email='user@email.com', password='password')
-            session.add(user)
-            session.flush()
-            hotel = Hotel(name="The Hotel", price_per_night=100.00, city="San Jose", address="123 Main St")
-            session.add(hotel)
-            session.flush()
-            room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
-            session.add(room)
-            session.flush()
-            booking = Booking(booking_number=1, title='Trip', user=user.id, room=room.id, start_date=date(2027, 1, 1), end_date=date(2027, 1, 5), total_price=100.99)
-            session.add(booking)
-            session.flush()
-            session.commit()
-            self.user_id = user.id 
-            self.booking_id = booking.id
+    @pytest.fixture(autouse=True)
+    def setup_method(self, session):
+        user = User(email='user@email.com', password='password')
+        session.add(user)
+        session.flush()
+        hotel = Hotel(name="The Hotel", price_per_night=100.00, city="San Jose", address="123 Main St")
+        session.add(hotel)
+        session.flush()
+        room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
+        session.add(room)
+        session.flush()
+        booking = Booking(booking_number=1, title='Trip', user=user.id, room=room.id, start_date=date(2027, 1, 1), end_date=date(2027, 1, 5), total_price=100.99)
+        session.add(booking)
+        session.flush()
+        self.user_id = user.id 
+        self.booking_id = booking.id
 
     def test_left_overlapping_booking_dates(self):
         left_overlap_result = get_overlapping_booking_dates(self.user_id, date(2027, 1, 2), date(2027, 1, 6)) 
@@ -54,19 +43,17 @@ class TestBooking:
         no_overlap_result = get_overlapping_booking_dates(self.user_id, date(2028, 1, 2), date(2028, 1, 6))
         assert no_overlap_result == []
 
-    def test_multiple_overlapping_booking_dates(self):
-        with Session(engine) as session:
-            hotel = Hotel(name="New Hotel", price_per_night=100.00, city="San Jose", address="1234 Main St")
-            session.add(hotel)
-            session.flush()
-            room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
-            session.add(room)
-            session.flush()
-            booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2027, 1, 6), end_date=date(2027, 1, 10), total_price=100.99)
-            session.add(booking)
-            session.flush()
-            session.commit()
-            new_booking_id = booking.id
+    def test_multiple_overlapping_booking_dates(self, session):
+        hotel = Hotel(name="New Hotel", price_per_night=100.00, city="San Jose", address="1234 Main St")
+        session.add(hotel)
+        session.flush()
+        room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
+        session.add(room)
+        session.flush()
+        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2027, 1, 6), end_date=date(2027, 1, 10), total_price=100.99)
+        session.add(booking)
+        session.flush()
+        new_booking_id = booking.id
         multiple_overlap_result = get_overlapping_booking_dates(self.user_id, date(2027, 1, 1), date(2027, 1, 14))
         booking_ids = [row[0] for row in multiple_overlap_result]
         assert booking_ids == [self.booking_id, new_booking_id]

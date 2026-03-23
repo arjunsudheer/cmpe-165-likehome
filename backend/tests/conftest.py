@@ -30,6 +30,11 @@ def engine():
     yield eng
     Base.metadata.drop_all(eng)
 
+@pytest.fixture(autouse=True)
+def patch_query_engine(engine):
+    with patch("backend.db.queries.engine", engine):
+        yield
+
 
 @pytest.fixture()
 def session(engine):
