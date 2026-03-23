@@ -7,7 +7,7 @@ import pytest
 class TestBooking:
 
     @pytest.fixture(autouse=True)
-    def setup_method(self, session):
+    def create_mock_booking(self, session):
         user = User(email='user@email.com', password='password')
         session.add(user)
         session.flush()
