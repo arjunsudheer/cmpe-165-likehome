@@ -16,11 +16,11 @@ export default defineConfig({
       "/hotels": {
         target: "http://localhost:5000",
         changeOrigin: true,
-      },
-      "/api": {
+      },   
+      "/rewards": {
         target: "http://localhost:5000",
         changeOrigin: true,
-      },
+      },    
     },
   },
 });

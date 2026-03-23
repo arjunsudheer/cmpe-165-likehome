@@ -1,0 +1,104 @@
+/* Sticky header with blur backdrop */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: var(--navbar-h);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--c-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Max-width container */
+.navbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Brand wordmark */
+.navbar-logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--c-primary);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+
+/* Navigation row — all items vertically centered */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Page nav links share the same style */
+.nav-link {
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  text-decoration: none;
+  transition: color .15s, background .15s;
+  white-space: nowrap;
+}
+
+.nav-link:hover { color: var(--c-text); background: var(--c-bg); }
+.nav-link.active { color: var(--c-primary); background: var(--c-primary-light); }
+
+/* Vertical rule separating page links from the account cluster */
+.nav-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--c-border);
+  margin: 0 12px;
+  flex-shrink: 0;
+}
+
+/* Username — intentionally plain, no hover, clearly not a link */
+.nav-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  margin-right: 4px;
+}
+
+/* Logout — red so it is visually distinct from nav links */
+.nav-logout-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid #fca5a5;
+  background: #fef2f2;
+  color: #dc2626;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-logout-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Login button — primary style, offset from links */
+.nav-login { margin-left: 8px; padding: 8px 20px; }

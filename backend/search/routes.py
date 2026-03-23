@@ -1,5 +1,4 @@
 from datetime import date
-from decimal import Decimal
 
 from flask import jsonify, request
 from sqlalchemy import func, select
@@ -9,45 +8,54 @@ from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review
 from backend.search import search_bp
 
 
-def _parse_iso_date(value, field_name):
-    if not value:
-        return None, f"{field_name} is required"
-
-    try:
-        return date.fromisoformat(value), None
-    except ValueError:
-        return None, f"{field_name} must be a valid date in YYYY-MM-DD format"
+def _f(val):
+    return float(val) if val is not None else 0.0
 
 
-def _serialize_decimal(value):
-    if value is None:
-        return 0.0
-    if isinstance(value, Decimal):
-        return float(value)
-    return float(value)
-
-
-def _get_star_display(average_rating):
-    filled_stars = int(round(average_rating))
+def _hotel_summary(hotel):
+    """Build a card-ready summary: one photo + amenities + review count."""
+    photo = session.execute(
+        select(HotelPhoto.url).where(HotelPhoto.hotel_id == hotel.id).limit(1)
+    ).scalar()
+    amenities = session.execute(
+        select(HotelAmenity.name).where(HotelAmenity.hotel_id == hotel.id)
+    ).scalars().all()
+    review_count = session.execute(
+        select(func.count(Review.id)).where(Review.hotel == hotel.id)
+    ).scalar() or 0
     return {
-        "filled": filled_stars,
-        "empty": 5 - filled_stars,
-        "label": ("*" * filled_stars) + ("-" * (5 - filled_stars)),
+        "id": hotel.id,
+        "name": hotel.name,
+        "city": hotel.city,
+        "address": hotel.address,
+        "price_per_night": _f(hotel.price_per_night),
+        "rating": _f(hotel.rating),
+        "review_count": int(review_count),
+        "primary_photo": photo,
+        "amenities": list(amenities),
     }
 
 
 def refresh_hotel_rating(hotel_id):
-    average_rating = session.execute(
+    avg = session.execute(
         select(func.avg(Review.rating)).where(Review.hotel == hotel_id)
     ).scalar()
     hotel = session.get(Hotel, hotel_id)
     if hotel is None:
         return None
-
-    normalized_rating = round(float(average_rating or 0), 2)
-    hotel.rating = normalized_rating
+    rating = round(float(avg or 0), 2)
+    hotel.rating = rating
     session.commit()
-    return normalized_rating
+    return rating
+
+
+@search_bp.route("/", methods=["GET"])
+def get_all_hotels():
+    """Default homepage view — all hotels ordered by rating."""
+    hotels = session.execute(
+        select(Hotel).order_by(Hotel.rating.desc(), Hotel.price_per_night.asc())
+    ).scalars().all()
+    return jsonify({"results": [_hotel_summary(h) for h in hotels]}), 200
 
 
 @search_bp.route("/search", methods=["GET"])
@@ -58,50 +66,29 @@ def search_hotels():
 
     if not destination:
         return jsonify({"error": "destination is required"}), 400
+    try:
+        check_in = date.fromisoformat(check_in_raw)
+        check_out = date.fromisoformat(check_out_raw)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dates must be YYYY-MM-DD"}), 400
 
-    check_in, error = _parse_iso_date(check_in_raw, "check_in")
-    if error:
-        return jsonify({"error": error}), 400
-
-    check_out, error = _parse_iso_date(check_out_raw, "check_out")
-    if error:
-        return jsonify({"error": error}), 400
-
-    today = date.today()
-    if check_in < today:
+    if check_in < date.today():
         return jsonify({"error": "check_in cannot be in the past"}), 400
-
     if check_out <= check_in:
         return jsonify({"error": "check_out must be after check_in"}), 400
 
-    stmt = (
+    hotels = session.execute(
         select(Hotel)
         .where(Hotel.city.ilike(f"%{destination}%"))
-        .order_by(Hotel.rating.desc(), Hotel.price_per_night.asc(), Hotel.name.asc())
-    )
-    hotels = session.execute(stmt).scalars().all()
+        .order_by(Hotel.rating.desc(), Hotel.price_per_night.asc())
+    ).scalars().all()
 
-    return (
-        jsonify(
-            {
-                "destination": destination,
-                "check_in": check_in.isoformat(),
-                "check_out": check_out.isoformat(),
-                "results": [
-                    {
-                        "id": hotel.id,
-                        "name": hotel.name,
-                        "city": hotel.city,
-                        "address": hotel.address,
-                        "price_per_night": float(hotel.price_per_night),
-                        "rating": float(hotel.rating or 0),
-                    }
-                    for hotel in hotels
-                ],
-            }
-        ),
-        200,
-    )
+    return jsonify({
+        "destination": destination,
+        "check_in": check_in.isoformat(),
+        "check_out": check_out.isoformat(),
+        "results": [_hotel_summary(h) for h in hotels],
+    }), 200
 
 
 @search_bp.route("/<int:hotel_id>", methods=["GET"])
@@ -110,126 +97,76 @@ def get_hotel_details(hotel_id):
     if hotel is None:
         return jsonify({"error": "Hotel not found"}), 404
 
-    room_stmt = select(HotelRoom).where(HotelRoom.hotel == hotel_id).order_by(HotelRoom.room.asc())
-    photo_stmt = select(HotelPhoto).where(HotelPhoto.hotel_id == hotel_id).order_by(HotelPhoto.id.asc())
-    amenity_stmt = (
-        select(HotelAmenity)
-        .where(HotelAmenity.hotel_id == hotel_id)
-        .order_by(HotelAmenity.name.asc())
-    )
-    review_stmt = select(Review).where(Review.hotel == hotel_id).order_by(Review.id.desc())
+    photos = session.execute(
+        select(HotelPhoto).where(HotelPhoto.hotel_id == hotel_id).order_by(HotelPhoto.id)
+    ).scalars().all()
+    amenities = session.execute(
+        select(HotelAmenity).where(HotelAmenity.hotel_id == hotel_id).order_by(HotelAmenity.name)
+    ).scalars().all()
+    reviews = session.execute(
+        select(Review).where(Review.hotel == hotel_id).order_by(Review.id.desc())
+    ).scalars().all()
+    rooms = session.execute(
+        select(HotelRoom).where(HotelRoom.hotel == hotel_id)
+    ).scalars().all()
 
-    rooms = session.execute(room_stmt).scalars().all()
-    photos = session.execute(photo_stmt).scalars().all()
-    amenities = session.execute(amenity_stmt).scalars().all()
-    reviews = session.execute(review_stmt).scalars().all()
-    average_rating = _serialize_decimal(hotel.rating)
-    star_display = _get_star_display(average_rating)
+    # Group rooms by type for display
+    room_types: dict = {}
+    for r in rooms:
+        t = r.room_type.value
+        if t not in room_types:
+            room_types[t] = {"type": t, "count": 0}
+        room_types[t]["count"] += 1
 
-    room_type_summary = {}
-    for room in rooms:
-        room_type_name = room.room_type.value
-        if room_type_name not in room_type_summary:
-            room_type_summary[room_type_name] = {
-                "type": room_type_name,
-                "count": 0,
-                "room_numbers": [],
-            }
-        room_type_summary[room_type_name]["count"] += 1
-        room_type_summary[room_type_name]["room_numbers"].append(room.room)
-
-    return (
-        jsonify(
+    avg = _f(hotel.rating)
+    return jsonify({
+        "id": hotel.id,
+        "name": hotel.name,
+        "city": hotel.city,
+        "address": hotel.address,
+        "price_per_night": _f(hotel.price_per_night),
+        "rating": avg,
+        "review_count": len(reviews),
+        "photos": [{"id": p.id, "url": p.url, "alt_text": p.alt_text} for p in photos],
+        "amenities": [a.name for a in amenities],
+        "room_types": list(room_types.values()),
+        "reviews": [
             {
-                "id": hotel.id,
-                "name": hotel.name,
-                "city": hotel.city,
-                "address": hotel.address,
-                "price_per_night": _serialize_decimal(hotel.price_per_night),
-                "rating": average_rating,
-                "review_count": len(reviews),
-                "star_display": star_display,
-                "photos": [
-                    {
-                        "id": photo.id,
-                        "url": photo.url,
-                        "alt_text": photo.alt_text,
-                    }
-                    for photo in photos
-                ],
-                "room_types": list(room_type_summary.values()),
-                "amenities": [amenity.name for amenity in amenities],
-                "reviews": [
-                    {
-                        "id": review.id,
-                        "user_id": review.user,
-                        "title": review.title,
-                        "content": review.content,
-                        "rating": review.rating,
-                    }
-                    for review in reviews
-                ],
+                "id": r.id,
+                "user_id": r.user,
+                "title": r.title,
+                "content": r.content,
+                "rating": r.rating,
             }
-        ),
-        200,
-    )
+            for r in reviews
+        ],
+    }), 200
 
 
 @search_bp.route("/<int:hotel_id>/reviews", methods=["POST"])
-def create_hotel_review(hotel_id):
-    hotel = session.get(Hotel, hotel_id)
-    if hotel is None:
+def create_review(hotel_id):
+    if session.get(Hotel, hotel_id) is None:
         return jsonify({"error": "Hotel not found"}), 404
 
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "Invalid JSON data"}), 400
-
+    data = request.get_json(silent=True) or {}
     user_id = data.get("user_id")
     rating = data.get("rating")
-    title = data.get("title", "No title")
-    content = data.get("content", "No content")
 
-    if user_id is None:
-        return jsonify({"error": "user_id is required"}), 400
-
-    if rating is None:
-        return jsonify({"error": "rating is required"}), 400
-
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
     if not isinstance(rating, int) or not 1 <= rating <= 5:
-        return jsonify({"error": "rating must be an integer between 1 and 5"}), 400
-
-    user = session.get(User, user_id)
-    if user is None:
+        return jsonify({"error": "rating must be integer 1–5"}), 400
+    if not session.get(User, user_id):
         return jsonify({"error": "User not found"}), 404
 
     review = Review(
         user=user_id,
         hotel=hotel_id,
-        title=title,
-        content=content,
+        title=data.get("title", "No title"),
+        content=data.get("content", "No content"),
         rating=rating,
     )
     session.add(review)
     session.commit()
-
-    updated_rating = refresh_hotel_rating(hotel_id)
-
-    return (
-        jsonify(
-            {
-                "message": "Review created successfully",
-                "review": {
-                    "id": review.id,
-                    "user_id": review.user,
-                    "hotel_id": review.hotel,
-                    "title": review.title,
-                    "content": review.content,
-                    "rating": review.rating,
-                },
-                "hotel_rating": updated_rating,
-                "star_display": _get_star_display(updated_rating),
-            }
-        ),
-        201,
-    )
+    new_rating = refresh_hotel_rating(hotel_id)
+    return jsonify({"message": "Review created", "hotel_rating": new_rating}), 201

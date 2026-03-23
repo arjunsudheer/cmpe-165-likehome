@@ -1,65 +1,76 @@
-.rewards-container {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 16px;
-}
+/* Page layout */
+.rewards-page { min-height: calc(100vh - var(--navbar-h)); background: var(--c-bg); padding: 40px 20px 80px; }
+.rewards-container { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
-.balance-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+.rewards-page-title { font-size: 30px; font-weight: 800; }
+
+/* Balance card */
+.rewards-balance-card {
   padding: 48px 40px;
   text-align: center;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
 }
 
-.balance-card.loading {
-  padding: 40px;
+.rewards-shimmer {
+  height: 180px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s infinite;
 }
 
-.shimmer {
-  height: 80px;
-  border-radius: 8px;
-  background: #f3f4f6;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+@keyframes skeleton-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .balance-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: #9ca3af;
-  margin-bottom: 16px;
+  opacity: .7;
+  margin-bottom: 12px;
 }
 
-.balance-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
+/* Big animated number */
+.balance-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.balance-number { font-size: 80px; font-weight: 800; letter-spacing: -3px; line-height: 1; }
+.balance-unit { font-size: 28px; font-weight: 600; opacity: .7; }
 
-.balance-number {
-  font-size: 72px;
+.balance-value { font-size: 16px; opacity: .85; }
+.balance-value strong { font-weight: 800; }
+.balance-rate { font-size: 13px; opacity: .65; }
+
+/* History card */
+.rewards-history { padding: 24px 28px; }
+
+.history-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.history-loading, .history-empty { font-size: 14px; color: var(--c-text-muted); }
+
+/* Transaction table */
+.history-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+.history-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
   font-weight: 700;
-  color: #111827;
-  letter-spacing: -2px;
-  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--c-text-muted);
+  border-bottom: 2px solid var(--c-border);
 }
 
-.balance-points {
-  font-size: 24px;
-  color: #9ca3af;
-  font-weight: 500;
+.history-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--c-border);
+  color: var(--c-text);
 }
 
-.balance-info {
-  font-size: 16px;
-  color: #9ca3af;
-}
+.history-table tr:last-child td { border-bottom: none; }
+
+/* Green earn / red spend */
+.pts-earn { color: var(--c-success); font-weight: 700; }
+.pts-spend { color: var(--c-danger); font-weight: 700; }
