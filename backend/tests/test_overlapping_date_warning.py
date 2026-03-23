@@ -5,6 +5,7 @@ import pytest
 FRONTEND_URL = "http://127.0.0.1:5173"
 API_URL = "http://127.0.0.1:5000"
 
+# pylint: disable=attribute-defined-outside-init
 class TestOverlapWarning:
 
     @pytest.fixture(autouse=True)
@@ -13,7 +14,7 @@ class TestOverlapWarning:
         'name': "User Name",
         'email': 'user@email.com',
         'password': 'password'
-        })
+        }, timeout=10)
         if 'access_token' in register.json():
             token = register.json()['access_token']
             self.user_id = register.json()['user_id']
@@ -21,7 +22,7 @@ class TestOverlapWarning:
             login = requests.post(f"{API_URL}/auth/login", json={
                 'email': 'user@email.com',
                 'password': 'password'
-            })
+            }, timeout=10)
             token = login.json()['access_token']
             self.user_id = login.json()['user_id']
         self.headers = {'Authorization': f'Bearer {token}'}
@@ -31,7 +32,7 @@ class TestOverlapWarning:
             'room': '10',
             'start_date': '2027-01-01',
             'end_date': '2027-01-10'
-        }, headers=self.headers)
+        }, headers=self.headers, timeout=10)
         print(response.json()) 
         self.booking_id = response.json()['booking']['id']
         yield 

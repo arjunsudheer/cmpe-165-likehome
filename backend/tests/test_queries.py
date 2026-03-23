@@ -4,6 +4,7 @@ from backend.db.models import Booking, User, HotelRoom, Hotel, RoomType
 from datetime import date
 import pytest
 
+# pylint: disable=attribute-defined-outside-init
 class TestBooking:
 
     @pytest.fixture(autouse=True)
