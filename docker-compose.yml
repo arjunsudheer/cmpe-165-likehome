@@ -1,35 +1,50 @@
-version: "3.9"
-
 services:
   db:
-    image: postgres:15
-    env_file:
-      - .env
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: likehome
+      POSTGRES_PASSWORD: likehome
+      POSTGRES_DB: likehome
+    volumes:
+      # Named volume keeps data across container restarts and rebuilds
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U likehome -d likehome"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   backend:
-    build: ./backend
-    env_file:
-      - .env
+    build:
+      # Build context is project root so the backend/ package is importable
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://likehome:likehome@db:5432/likehome
+      JWT_SECRET_KEY: change-this-secret-in-production
     ports:
-      - "5001:5000"
+      - "5001:5001"
     depends_on:
       db:
+        # Wait for postgres to pass its healthcheck before starting Flask
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # In Docker, proxy target must use the backend service name, not localhost
+      VITE_BACKEND_URL: http://backend:5001
     ports:
       - "5173:5173"
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
