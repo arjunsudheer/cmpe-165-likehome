@@ -1,0 +1,99 @@
+/* Gradient hero banner */
+.search-hero {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #0ea5e9 100%);
+  padding: 56px 32px 48px;
+}
+
+/* Inner centering wrapper */
+.search-hero-content {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.search-hero-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -1px;
+  margin-bottom: 10px;
+}
+
+.search-hero-sub {
+  font-size: 16px;
+  color: rgba(255, 255, 255, .8);
+  margin-bottom: 32px;
+}
+
+/* White pill-shaped search form */
+.search-bar {
+  display: flex;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .18);
+  align-items: stretch;
+}
+
+.search-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px;
+  border-right: 1px solid var(--c-border);
+  gap: 4px;
+}
+
+.search-field-wide { flex: 2; }
+
+.search-field label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--c-text-muted);
+}
+
+.search-field input {
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text);
+  background: transparent;
+  min-width: 0;
+}
+
+/* Search button occupies the far right */
+.search-submit {
+  flex-shrink: 0;
+  padding: 0 28px;
+  background: var(--c-primary);
+  color: white;
+  border: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+  white-space: nowrap;
+}
+
+.search-submit:hover:not(:disabled) { background: var(--c-primary-dark); }
+.search-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Result count hint below bar */
+.search-result-count {
+  margin-top: 16px;
+  color: rgba(255, 255, 255, .85);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .search-bar { flex-direction: column; }
+  .search-field { border-right: none; border-bottom: 1px solid var(--c-border); }
+  .search-submit { padding: 16px; border-radius: 0; }
+  .search-hero-title { font-size: 28px; }
+}

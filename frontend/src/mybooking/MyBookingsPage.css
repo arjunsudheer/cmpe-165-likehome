@@ -1,0 +1,81 @@
+/* Page background and layout */
+.my-bookings-page { min-height: calc(100vh - var(--navbar-h)); background: var(--c-bg); padding: 40px 20px 80px; }
+.my-bookings-container { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.my-bookings-container > h1 { font-size: 30px; font-weight: 800; }
+
+/* Skeleton loading placeholders */
+.bookings-skeletons { display: flex; flex-direction: column; gap: 12px; }
+
+.booking-skeleton {
+  height: 150px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s infinite;
+}
+
+/* Empty state */
+.bookings-empty { text-align: center; padding: 80px 20px; }
+.bookings-empty-icon { font-size: 56px; margin-bottom: 16px; }
+.bookings-empty h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.bookings-empty p { font-size: 15px; color: var(--c-text-muted); margin-bottom: 24px; }
+
+/* Section grouping */
+.bookings-group { display: flex; flex-direction: column; gap: 12px; }
+
+.group-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--c-text-muted);
+  margin-bottom: 4px;
+}
+
+/* Individual booking card */
+.booking-card { padding: 20px 24px; }
+.booking-card-cancelled { opacity: .6; }
+
+.booking-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 12px; }
+
+.booking-hotel-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--c-text);
+  text-decoration: none;
+  display: block;
+  margin-bottom: 2px;
+}
+
+a.booking-hotel-name:hover { color: var(--c-primary); }
+.booking-city { font-size: 13px; color: var(--c-text-muted); }
+
+/* 3-column detail grid */
+.booking-details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.booking-detail { display: flex; flex-direction: column; gap: 2px; }
+.detail-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--c-text-muted); }
+.detail-value { font-size: 14px; font-weight: 600; }
+
+/* Footer row: ref number + cancel */
+.booking-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.booking-ref { font-size: 12px; font-weight: 600; color: var(--c-text-light); font-family: monospace; }
+
+.booking-cancel-btn { padding: 6px 14px; font-size: 13px; color: var(--c-danger); border-color: #fecaca; }
+.booking-cancel-btn:hover:not(:disabled) { background: #fef2f2; }
+
+@media (max-width: 560px) {
+  .booking-details-grid { grid-template-columns: repeat(2, 1fr); }
+}

@@ -1,29 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
-interface Errs { name?: string; email?: string; password?: string; }
+interface Errs { email?: string; password?: string; }
 
-export default function Register() {
+export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  // Pre-fill email when redirected here from Login's "email not found" path
-  const [form, setForm] = useState({ name: "", email: params.get("email") || "", password: "" });
+  const [form, setForm] = useState({
+    email: params.get("email") || "",
+    password: "",
+  });
   const [errs, setErrs] = useState<Errs>({});
   const [apiError, setApiError] = useState("");
+  const [hint, setHint] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Show hint message when redirected from register
+  useEffect(() => {
+    if (params.get("hint") === "exists") {
+      setHint("An account with that email already exists. Sign in below.");
+    }
+  }, [params]);
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
 
   const validate = () => {
     const e: Errs = {};
-    if (!form.name.trim()) e.name = "Name is required";
     if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Enter a valid email";
-    if (form.password.length < 6) e.password = "At least 6 characters";
+    if (!form.password) e.password = "Password is required";
     setErrs(e);
     return Object.keys(e).length === 0;
   };
@@ -35,19 +44,19 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const res = await fetch("/auth/register", {
+      const res = await fetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json();
 
-      if (res.status === 409) {
-        // Email already exists — redirect to login
-        navigate("/login?hint=exists&email=" + encodeURIComponent(form.email));
+      if (res.status === 404) {
+        // Email not found — redirect to register
+        navigate("/register?email=" + encodeURIComponent(form.email));
         return;
       }
-      if (!res.ok) { setApiError(data.error || "Registration failed."); return; }
+      if (!res.ok) { setApiError(data.error || "Login failed."); return; }
 
       login({ token: data.access_token, userId: data.user_id, email: data.email, name: data.name });
       navigate("/");
@@ -62,27 +71,22 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-brand">
         <h1>LikeHome</h1>
-        <p>Create an account to start booking and earning rewards.</p>
+        <p>Welcome back — your next great stay is waiting.</p>
         <ul className="auth-perks">
-          <li>🏨 Thousands of hotels</li>
-          <li>🎁 Earn rewards on every stay</li>
-          <li>⚡ Instant confirmation</li>
+          <li>📋 View all your bookings</li>
+          <li>🎁 Redeem rewards at checkout</li>
+          <li>🔔 Instant booking updates</li>
         </ul>
       </div>
 
       <div className="auth-card">
-        <h2>Create Account</h2>
-        <p className="auth-sub">Already have an account? <Link to="/login">Sign in</Link></p>
+        <h2>Sign In</h2>
+        <p className="auth-sub">No account? <Link to="/register">Create one free</Link></p>
 
+        {hint && <div className="alert alert-info">{hint}</div>}
         {apiError && <div className="alert alert-error">{apiError}</div>}
 
         <form onSubmit={handleSubmit} noValidate className="auth-form">
-          <div className="form-group">
-            <label className="form-label">Full name</label>
-            <input className={`form-input${errs.name ? " error" : ""}`} type="text" placeholder="Jane Smith" value={form.name} onChange={set("name")} autoComplete="name" />
-            {errs.name && <span className="form-error">{errs.name}</span>}
-          </div>
-
           <div className="form-group">
             <label className="form-label">Email address</label>
             <input className={`form-input${errs.email ? " error" : ""}`} type="email" placeholder="jane@example.com" value={form.email} onChange={set("email")} autoComplete="email" />
@@ -91,12 +95,12 @@ export default function Register() {
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input className={`form-input${errs.password ? " error" : ""}`} type="password" placeholder="At least 6 characters" value={form.password} onChange={set("password")} autoComplete="new-password" />
+            <input className={`form-input${errs.password ? " error" : ""}`} type="password" placeholder="Your password" value={form.password} onChange={set("password")} autoComplete="current-password" />
             {errs.password && <span className="form-error">{errs.password}</span>}
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg auth-submit" disabled={loading}>
-            {loading ? "Creating account…" : "Create Account"}
+            {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
       </div>
