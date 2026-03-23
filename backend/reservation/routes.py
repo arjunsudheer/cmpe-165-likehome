@@ -150,9 +150,9 @@ def list_bookings():
 # ── Create booking ────────────────────────────────────────────────────────────
 
 @reservation_bp.route("/", methods=["POST"])
-@jwt_required()
+#@jwt_required()
 def create_booking():
-    user_id = int(get_jwt_identity())
+    user_id = 1 #int(get_jwt_identity())
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
@@ -207,7 +207,7 @@ def create_booking():
             end_date=end_date,
             total_price=total,
             status=Status.INPROGRESS,
-            expires_at=datetime.now() + timedelta(minutes=15),
+            expires_at=datetime.now() + timedelta(seconds=20),
         )
         db.add(booking)
         db.commit()
