@@ -1,16 +1,16 @@
 import pytest
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from backend.db.models import User, Hotel, HotelRoom, Booking, RoomType, Status
-from backend.reservation.routes import (
+from backend.reservation.utils import (
     generate_booking_number,
     check_room_availability,
     calculate_total_price,
 )
 
 
-# ── Helpers ──────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 
 def _make_user(session, email="guest@example.com"):
@@ -55,7 +55,7 @@ def _make_booking(session, user, room, start, end, price="200.00"):
     return b
 
 
-# ── Booking number generation ────────────────────────────────────────
+# ── Booking number generation ─────────────────────────────────────────────────
 
 
 class TestBookingNumber:
@@ -70,7 +70,7 @@ class TestBookingNumber:
         assert len(numbers) == 100
 
 
-# ── Price calculation ────────────────────────────────────────────────
+# ── Price calculation ─────────────────────────────────────────────────────────
 
 
 class TestPriceCalculation:
@@ -86,7 +86,7 @@ class TestPriceCalculation:
         ) == Decimal("449.97")
 
 
-# ── Room availability ────────────────────────────────────────────────
+# ── Room availability ─────────────────────────────────────────────────────────
 
 
 class TestRoomAvailability:
@@ -119,6 +119,7 @@ class TestRoomAvailability:
         room = _make_room(session, hotel)
         _make_booking(session, user, room, date(2026, 4, 1), date(2026, 4, 3))
 
+        # Check-out on the same day as a new check-in is not a conflict
         conflicts = check_room_availability(
             session, room.id, date(2026, 4, 3), date(2026, 4, 5)
         )
@@ -138,7 +139,7 @@ class TestRoomAvailability:
         assert len(conflicts) == 0
 
 
-# ── Booking model constraints ────────────────────────────────────────
+# ── Booking model constraints ─────────────────────────────────────────────────
 
 
 class TestBookingModel:
