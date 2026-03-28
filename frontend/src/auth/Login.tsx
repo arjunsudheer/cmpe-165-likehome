@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
@@ -10,19 +11,17 @@ export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [form, setForm] = useState({
-    email: params.get("email") || "",
-    password: "",
-  });
+  const [form, setForm] = useState({ email: params.get("email") || "", password: "" });
   const [errs, setErrs] = useState<Errs>({});
   const [apiError, setApiError] = useState("");
   const [hint, setHint] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Show hint message when redirected from register
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
   useEffect(() => {
     if (params.get("hint") === "exists") {
-      setHint("An account with that email already exists. Sign in below.");
+      setHint("An account with that email already exists — sign in below.");
     }
   }, [params]);
 
@@ -35,6 +34,13 @@ export default function Login() {
     if (!form.password) e.password = "Password is required";
     setErrs(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleSuccess = (data: {
+    access_token: string; user_id: number; email: string; name: string | null;
+  }) => {
+    login({ token: data.access_token, userId: data.user_id, email: data.email, name: data.name });
+    navigate("/");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,18 +58,32 @@ export default function Login() {
       const data = await res.json();
 
       if (res.status === 404) {
-        // Email not found — redirect to register
         navigate("/register?email=" + encodeURIComponent(form.email));
         return;
       }
       if (!res.ok) { setApiError(data.error || "Login failed."); return; }
-
-      login({ token: data.access_token, userId: data.user_id, email: data.email, name: data.name });
-      navigate("/");
+      handleSuccess(data);
     } catch {
       setApiError("Network error — please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) return;
+    setApiError("");
+    try {
+      const res = await fetch("/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setApiError(data.error || "Google sign-in failed."); return; }
+      handleSuccess(data);
+    } catch {
+      setApiError("Network error — please try again.");
     }
   };
 
@@ -81,7 +101,9 @@ export default function Login() {
 
       <div className="auth-card">
         <h2>Sign In</h2>
-        <p className="auth-sub">No account? <Link to="/register">Create one free</Link></p>
+        <p className="auth-sub">
+          No account? <Link to="/register">Create one free</Link>
+        </p>
 
         {hint && <div className="alert alert-info">{hint}</div>}
         {apiError && <div className="alert alert-error">{apiError}</div>}
@@ -89,20 +111,54 @@ export default function Login() {
         <form onSubmit={handleSubmit} noValidate className="auth-form">
           <div className="form-group">
             <label className="form-label">Email address</label>
-            <input className={`form-input${errs.email ? " error" : ""}`} type="email" placeholder="jane@example.com" value={form.email} onChange={set("email")} autoComplete="email" />
+            <input
+              className={`form-input${errs.email ? " error" : ""}`}
+              type="email"
+              placeholder="jane@example.com"
+              value={form.email}
+              onChange={set("email")}
+              autoComplete="email"
+            />
             {errs.email && <span className="form-error">{errs.email}</span>}
           </div>
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input className={`form-input${errs.password ? " error" : ""}`} type="password" placeholder="Your password" value={form.password} onChange={set("password")} autoComplete="current-password" />
+            <input
+              className={`form-input${errs.password ? " error" : ""}`}
+              type="password"
+              placeholder="Your password"
+              value={form.password}
+              onChange={set("password")}
+              autoComplete="current-password"
+            />
             {errs.password && <span className="form-error">{errs.password}</span>}
           </div>
 
-          <button type="submit" className="btn btn-primary btn-lg auth-submit" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg auth-submit"
+            disabled={loading}
+          >
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        {/* Only render Google button when a client ID is configured */}
+        {googleClientId && (
+          <>
+            <div className="auth-divider">or continue with</div>
+            <div className="google-btn-wrapper">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setApiError("Google sign-in failed — please try again.")}
+                text="signin_with"
+                shape="rectangular"
+                width="320"
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

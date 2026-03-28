@@ -4,9 +4,8 @@
   padding: 56px 32px 48px;
 }
 
-/* Inner centering wrapper */
 .search-hero-content {
-  max-width: 900px;
+  max-width: 980px;
   margin: 0 auto;
   text-align: center;
 }
@@ -42,9 +41,14 @@
   padding: 14px 18px;
   border-right: 1px solid var(--c-border);
   gap: 4px;
+  min-width: 0;
 }
 
+/* Destination takes double width */
 .search-field-wide { flex: 2; }
+
+/* Guests column is intentionally compact */
+.search-field-narrow { flex: 0.6; }
 
 .search-field label {
   font-size: 10px;
@@ -52,6 +56,7 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--c-text-muted);
+  white-space: nowrap;
 }
 
 .search-field input {
@@ -62,10 +67,15 @@
   font-weight: 600;
   color: var(--c-text);
   background: transparent;
+  width: 100%;
   min-width: 0;
 }
 
-/* Search button occupies the far right */
+/* Remove browser spinners from number input — arrow keys still work */
+.search-field input[type="number"]::-webkit-inner-spin-button,
+.search-field input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+
+/* Search submit button on far right */
 .search-submit {
   flex-shrink: 0;
   padding: 0 28px;
@@ -83,7 +93,6 @@
 .search-submit:hover:not(:disabled) { background: var(--c-primary-dark); }
 .search-submit:disabled { opacity: .6; cursor: not-allowed; }
 
-/* Result count hint below bar */
 .search-result-count {
   margin-top: 16px;
   color: rgba(255, 255, 255, .85);
@@ -91,9 +100,10 @@
   font-weight: 500;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .search-bar { flex-direction: column; }
   .search-field { border-right: none; border-bottom: 1px solid var(--c-border); }
-  .search-submit { padding: 16px; border-radius: 0; }
+  .search-field-narrow { flex: 1; }
+  .search-submit { padding: 16px; }
   .search-hero-title { font-size: 28px; }
 }

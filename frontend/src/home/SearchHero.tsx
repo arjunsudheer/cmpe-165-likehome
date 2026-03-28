@@ -1,84 +1,127 @@
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import "./SearchHero.css";
 
+export interface SearchValues {
+  destination: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+}
+
+/** Exposed to HomePage so the Clear button can reset all fields */
+export interface SearchHeroHandle {
+  clear: () => void;
+}
+
 interface Props {
-  onSearch: (destination: string, checkIn: string, checkOut: string) => void;
+  onSearch: (values: SearchValues) => void;
   isLoading: boolean;
   resultCount: number | null;
 }
 
-export default function SearchHero({ onSearch, isLoading, resultCount }: Props) {
-  const [destination, setDestination] = useState("");
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+const SearchHero = forwardRef<SearchHeroHandle, Props>(
+  ({ onSearch, isLoading, resultCount }, ref) => {
+    const [destination, setDestination] = useState("");
+    const [checkIn, setCheckIn] = useState("");
+    const [checkOut, setCheckOut] = useState("");
+    const [guests, setGuests] = useState(1);
 
-  const today = new Date().toISOString().split("T")[0];
-  const canSearch = destination.trim() && checkIn && checkOut;
+    const today = new Date().toISOString().split("T")[0];
+    const canSearch = destination.trim() && checkIn && checkOut;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (canSearch) onSearch(destination.trim(), checkIn, checkOut);
-  };
+    useImperativeHandle(ref, () => ({
+      clear: () => {
+        setDestination("");
+        setCheckIn("");
+        setCheckOut("");
+        setGuests(1);
+      },
+    }));
 
-  return (
-    <section className="search-hero">
-      <div className="search-hero-content">
-        <h1 className="search-hero-title">Find your perfect stay</h1>
-        <p className="search-hero-sub">
-          Search hundreds of hotels — all three fields required to search.
-        </p>
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (canSearch) {
+        onSearch({ destination: destination.trim(), checkIn, checkOut, guests });
+      }
+    };
 
-        <form className="search-bar" onSubmit={handleSubmit}>
-          <div className="search-field search-field-wide">
-            <label htmlFor="destination">Destination</label>
-            <input
-              id="destination"
-              type="text"
-              placeholder="City or hotel name"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-            />
-          </div>
-
-          <div className="search-field">
-            <label htmlFor="check-in">Check-in</label>
-            <input
-              id="check-in"
-              type="date"
-              min={today}
-              value={checkIn}
-              onChange={(e) => setCheckIn(e.target.value)}
-            />
-          </div>
-
-          <div className="search-field">
-            <label htmlFor="check-out">Check-out</label>
-            <input
-              id="check-out"
-              type="date"
-              min={checkIn || today}
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="search-submit"
-            disabled={!canSearch || isLoading}
-          >
-            {isLoading ? "Searching…" : "Search"}
-          </button>
-        </form>
-
-        {resultCount !== null && (
-          <p className="search-result-count">
-            {resultCount === 0
-              ? "No hotels found — try a different city."
-              : `${resultCount} hotel${resultCount === 1 ? "" : "s"} found`}
+    return (
+      <section className="search-hero">
+        <div className="search-hero-content">
+          <h1 className="search-hero-title">Find your perfect stay</h1>
+          <p className="search-hero-sub">
+            Enter a destination, dates, and guests — all three required to search.
           </p>
-        )}
-      </div>
-    </section>
-  );
-}
+
+          <form className="search-bar" onSubmit={handleSubmit}>
+            <div className="search-field search-field-wide">
+              <label htmlFor="sh-dest">Destination</label>
+              <input
+                id="sh-dest"
+                type="text"
+                placeholder="City or hotel name"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              />
+            </div>
+
+            <div className="search-field">
+              <label htmlFor="sh-checkin">Check-in</label>
+              <input
+                id="sh-checkin"
+                type="date"
+                min={today}
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+              />
+            </div>
+
+            <div className="search-field">
+              <label htmlFor="sh-checkout">Check-out</label>
+              <input
+                id="sh-checkout"
+                type="date"
+                min={checkIn || today}
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+              />
+            </div>
+
+            <div className="search-field search-field-narrow">
+              <label htmlFor="sh-guests">Guests</label>
+              <input
+                id="sh-guests"
+                type="number"
+                min={1}
+                max={8}
+                value={guests}
+                onChange={(e) =>
+                  setGuests(Math.max(1, Math.min(8, parseInt(e.target.value) || 1)))
+                }
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="search-submit"
+              disabled={!canSearch || isLoading}
+            >
+              {isLoading ? "Searching…" : "Search"}
+            </button>
+          </form>
+
+          {resultCount !== null && (
+            <p className="search-result-count">
+              {resultCount === 0
+                ? "No hotels found — try a different city."
+                : `${resultCount} hotel${resultCount === 1 ? "" : "s"} found`}
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
+);
+
+SearchHero.displayName = "SearchHero";
+export default SearchHero;

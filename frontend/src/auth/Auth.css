@@ -16,32 +16,11 @@
   color: white;
 }
 
-.auth-brand h1 {
-  font-size: 48px;
-  font-weight: 800;
-  letter-spacing: -1.5px;
-  margin-bottom: 16px;
-}
+.auth-brand h1 { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 16px; }
+.auth-brand p { font-size: 17px; opacity: .9; line-height: 1.6; margin-bottom: 40px; }
 
-.auth-brand p {
-  font-size: 17px;
-  opacity: .9;
-  line-height: 1.6;
-  margin-bottom: 40px;
-}
-
-.auth-perks {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.auth-perks li {
-  font-size: 15px;
-  font-weight: 600;
-  opacity: .9;
-}
+.auth-perks { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.auth-perks li { font-size: 15px; font-weight: 600; opacity: .9; }
 
 /* Right form panel */
 .auth-card {
@@ -54,38 +33,41 @@
   max-width: 560px;
 }
 
-.auth-card h2 {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--c-text);
-  margin-bottom: 6px;
-  letter-spacing: -.5px;
-}
+.auth-card h2 { font-size: 32px; font-weight: 800; color: var(--c-text); margin-bottom: 6px; letter-spacing: -.5px; }
 
-.auth-sub {
-  font-size: 14px;
-  color: var(--c-text-muted);
-  margin-bottom: 28px;
-}
-
-.auth-sub a {
-  color: var(--c-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-
+.auth-sub { font-size: 14px; color: var(--c-text-muted); margin-bottom: 24px; }
+.auth-sub a { color: var(--c-primary); font-weight: 600; text-decoration: none; }
 .auth-sub a:hover { text-decoration: underline; }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Full-width submit button */
+.auth-form { display: flex; flex-direction: column; gap: 20px; }
 .auth-submit { width: 100%; margin-top: 4px; }
 
-.auth-form .alert { margin-bottom: 4px; }
+/* "or continue with" divider between form and Google button */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  color: var(--c-text-light);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
+/* Google sign-in button wrapper — centers the rendered Google button */
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+}
 
 @media (max-width: 800px) {
   .auth-page { flex-direction: column; }

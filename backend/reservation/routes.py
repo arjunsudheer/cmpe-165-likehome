@@ -1,4 +1,3 @@
-import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -13,32 +12,13 @@ from backend.db.models import (
 )
 from backend.db.queries import get_overlapping_booking_dates, room_availability
 from backend.reservation import reservation_bp
+from backend.reservation.utils import (
+    calculate_total_price,
+    check_room_availability,
+    generate_booking_number,
+)
 
 POINTS_PER_DOLLAR = 10
-
-
-def _gen_booking_number():
-    return "LH-" + uuid.uuid4().hex[:8].upper()
-
-
-def _check_room_conflicts(db, room_id, start_date, end_date, exclude_id=None):
-    """Return active bookings that overlap the requested window."""
-    stmt = select(Booking).where(
-        and_(
-            Booking.room == room_id,
-            Booking.status != Status.CANCELLED,
-            Booking.start_date < end_date,
-            Booking.end_date > start_date,
-        )
-    )
-    if exclude_id:
-        stmt = stmt.where(Booking.id != exclude_id)
-    return db.execute(stmt).scalars().all()
-
-
-def _total_price(price_per_night, start_date, end_date):
-    nights = (end_date - start_date).days
-    return Decimal(str(price_per_night)) * nights
 
 
 # ── User-level scheduling conflict check ─────────────────────────────────────
@@ -187,19 +167,23 @@ def create_booking():
         if not hotel:
             return jsonify({"error": "Hotel not found"}), 404
 
-        conflicts = _check_room_conflicts(db, room_id, start_date, end_date)
+        conflicts = check_room_availability(db, room_id, start_date, end_date)
         if conflicts:
             return jsonify({
                 "error": "Room unavailable for selected dates",
                 "conflicts": [
-                    {"booking_id": c.id, "start_date": c.start_date.isoformat(), "end_date": c.end_date.isoformat()}
+                    {
+                        "booking_id": c.id,
+                        "start_date": c.start_date.isoformat(),
+                        "end_date": c.end_date.isoformat(),
+                    }
                     for c in conflicts
                 ],
             }), 409
 
-        total = _total_price(hotel.price_per_night, start_date, end_date)
+        total = calculate_total_price(hotel.price_per_night, start_date, end_date)
         booking = Booking(
-            booking_number=_gen_booking_number(),
+            booking_number=generate_booking_number(),
             title=title,
             user=user_id,
             room=room_id,
@@ -291,7 +275,11 @@ def confirm_booking(booking_id):
             user = db.get(User, user_id)
             if user:
                 user.points += points_earned
-                db.add(PointsTransaction(user_id=user_id, booking_id=booking.id, points=points_earned))
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking.id,
+                    points=points_earned,
+                ))
 
         db.commit()
         return jsonify({
@@ -318,4 +306,7 @@ def cancel_booking(booking_id):
 
         booking.status = Status.CANCELLED
         db.commit()
-        return jsonify({"message": "Booking cancelled", "booking_number": booking.booking_number}), 200
+        return jsonify({
+            "message": "Booking cancelled",
+            "booking_number": booking.booking_number,
+        }), 200

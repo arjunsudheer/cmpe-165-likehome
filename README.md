@@ -1,63 +1,66 @@
 # cmpe-165-likehome
 This repository is dedicated to the LikeHome Project from the CMPE 165 class at SJSU.
 
+## Running the Application
 
-# Running the Application
+First, create your own ```.env``` file by referencing ```.env.example```. Place your ```.env``` file in the root directory of this project.
 
-## With Docker
+### Docker Setup
 
-1. Create your own ```.env``` by referencing ```.env.example```
-    - Only for the following variables, use these values:
-        ```.env
-        DB_HOST=db
-        DB_PORT=5432
-        ```
-        
-2. Run the application:
+Refer to the following commands when using Docker.
+
 ```sh
-docker compose up -d --build
+# First time (or after code changes)
+docker compose up --build
+
+# Subsequent starts (no code changes)
+docker compose up
+
+# Stop everything (data volume is preserved)
+docker compose down
+
+# Stop AND wipe the database volume (fresh start)
+docker compose down -v
 ```
 
-# Manual Setup
+## Manual Setup
 
-## Backend Setup
+### Backend Setup
 
-1. Go to backend folder: 
-    ```sh
-    cd backend
-    ```
+Run these commands only once for set up:
 
-2. Install the required dependencies:
-    ```sh
-    pip install -r requirements.txt
-    ```
+```sh
+# Go to the backend directory
+cd backend
 
-3. Create your own ```.env``` by referencing ```.env.example```
+# Install dependencies
+pip install -r requirements.txt
 
-4. To test the hotel details endpoint 
-    - seed the data to populate the tables
-    ```sh
-    python backend/init_db.py
-    ```
+# Populate the database
+cd ../
+python -m backend.db.init_db
+```
 
-5. Run the server: 
-    ```sh
-    python -m backend.app
-    ```
+To start the backend server, run the following command:
 
-## Frontend Setup
+```sh
+python -m backend.app
+```
 
-1. Go to frontend folder: 
-    ```sh
-    cd frontend
-    ```
+### Frontend Setup
 
-2. Install the required dependencies:
-    ```sh
-    npm install
-    ```
-    
-3. Run the frontend server: 
-    ```sh
-    npm run dev
-    ```
+Run these commands only once for set up:
+
+```sh
+# Go to the frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+```
+
+To start the frontend server, run the following command:
+
+```sh
+npm run dev
+```

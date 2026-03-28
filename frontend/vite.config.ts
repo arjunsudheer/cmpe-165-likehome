@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 
-// Local dev:  VITE_BACKEND_URL is unset → falls back to localhost:5001
-// Docker:     docker-compose sets VITE_BACKEND_URL=http://backend:5001
+// Local dev:  VITE_BACKEND_URL unset → falls back to localhost:5001
+// Docker:     docker-compose injects VITE_BACKEND_URL=http://backend:5001
 const backendUrl = process.env.VITE_BACKEND_URL ?? "http://localhost:5001";
 
 export default defineConfig({
