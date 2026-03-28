@@ -48,9 +48,11 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
     return (
       <section className="search-hero">
         <div className="search-hero-content">
-          <h1 className="search-hero-title">Find your perfect stay</h1>
+          <h1 className="search-hero-title">
+            Find your perfect <span className="highlight">night</span>
+          </h1>
           <p className="search-hero-sub">
-            Enter a destination, dates, and guests — all three required to search.
+            Enter a destination, dates, and guests to discover your ideal stay.
           </p>
 
           <form className="search-bar" onSubmit={handleSubmit}>

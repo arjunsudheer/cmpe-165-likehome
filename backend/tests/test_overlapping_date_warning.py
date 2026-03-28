@@ -2,10 +2,13 @@ from playwright.sync_api import Page, expect
 import requests
 import pytest
 
+import os
+
 FRONTEND_URL = "http://127.0.0.1:5173"
 API_URL = "http://127.0.0.1:5000"
 
 # pylint: disable=attribute-defined-outside-init
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="Requires live servers")
 class TestOverlapWarning:
 
     @pytest.fixture(autouse=True)

@@ -84,7 +84,7 @@
   padding: 5px 10px;
   border: 1.5px solid var(--c-border);
   border-radius: var(--radius-sm);
-  background: white;
+  background: var(--c-surface-2);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;

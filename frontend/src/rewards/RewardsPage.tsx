@@ -44,7 +44,7 @@ export default function RewardsPage() {
         setError(err instanceof Error ? err.message : "Failed to load rewards data.");
       })
       .finally(() => setLoading(false));
-  }, [auth.isAuthenticated, navigate]);
+  }, [auth, navigate]);
 
   // Count-up animation — setState is only ever called inside the interval
   // callback, never synchronously in the effect body, avoiding cascading renders.

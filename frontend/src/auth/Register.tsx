@@ -89,13 +89,19 @@ export default function Register() {
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <h1>LikeHome</h1>
-        <p>Create an account to start booking and earning rewards.</p>
-        <ul className="auth-perks">
-          <li>🏨 Thousands of hotels</li>
-          <li>🎁 Earn rewards on every stay</li>
-          <li>⚡ Instant confirmation</li>
-        </ul>
+        <div className="auth-brand-content">
+          <div className="auth-brand-logo">
+            LikeHome
+          </div>
+          <h1>Find your perfect stay.</h1>
+          <p>Create an account to start booking hotels and earning rewards on every stay.</p>
+          <ul className="auth-perks">
+            <li>🏨 Thousands of hotels worldwide</li>
+            <li>🎁 Earn rewards on every booking</li>
+            <li>💳 Save cards for fast checkout</li>
+            <li>⚡ Instant booking confirmation</li>
+          </ul>
+        </div>
       </div>
 
       <div className="auth-card">

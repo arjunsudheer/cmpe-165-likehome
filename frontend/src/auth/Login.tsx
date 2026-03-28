@@ -90,13 +90,19 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <h1>LikeHome</h1>
-        <p>Welcome back — your next great stay is waiting.</p>
-        <ul className="auth-perks">
-          <li>📋 View all your bookings</li>
-          <li>🎁 Redeem rewards at checkout</li>
-          <li>🔔 Instant booking updates</li>
-        </ul>
+        <div className="auth-brand-content">
+          <div className="auth-brand-logo">
+            LikeHome
+          </div>
+          <h1>Find your perfect stay.</h1>
+          <p>Your next great stay is waiting — piece it together tonight.</p>
+          <ul className="auth-perks">
+            <li>📋 View and manage all your bookings</li>
+            <li>🎁 Redeem rewards points at checkout</li>
+            <li>💳 Saved payment methods for fast checkout</li>
+            <li>🔔 Instant booking confirmation</li>
+          </ul>
+        </div>
       </div>
 
       <div className="auth-card">

@@ -102,7 +102,7 @@ def list_bookings():
     with Session(engine) as db:
         bookings = db.execute(
             select(Booking)
-            .where(Booking.user == user_id)
+            .where(and_(Booking.user == user_id, Booking.status != Status.INPROGRESS))
             .order_by(Booking.created_at.desc())
         ).scalars().all()
 
@@ -191,13 +191,13 @@ def create_booking():
             end_date=end_date,
             total_price=total,
             status=Status.INPROGRESS,
-            expires_at=datetime.now() + timedelta(minutes=15),
+            expires_at=datetime.now() + timedelta(minutes=5),
         )
         db.add(booking)
         db.commit()
 
         return jsonify({
-            "message": "Booking created — confirm within 15 minutes",
+            "message": "Booking created — confirm within 5 minutes",
             "booking": {
                 "id": booking.id,
                 "booking_number": booking.booking_number,
