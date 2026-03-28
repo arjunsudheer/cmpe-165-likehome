@@ -8,6 +8,7 @@ function applyTheme(theme: "dark" | "light") {
   localStorage.setItem("lh_theme", theme);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function initTheme() {
   const saved = localStorage.getItem("lh_theme") as "dark" | "light" | null;
   applyTheme(saved ?? "dark");

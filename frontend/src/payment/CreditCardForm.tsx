@@ -99,16 +99,8 @@ export default function CreditCardForm({ onCardSelected, onCardCleared }: Props)
     } else {
       onCardCleared();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, savedCards]);
-
-  // Sync to parent on mount if card already selected
-  useEffect(() => {
-    if (savedCards.length > 0) {
-      const card = savedCards[0];
-      setSelectedId(card.id);
-      onCardSelected(card);
-    }
-  }, []);
 
   const brand = detectBrand(cardNumberField);
   const displayNumber = cardNumberField || "•••• •••• •••• ••••";
