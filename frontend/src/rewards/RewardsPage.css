@@ -8,16 +8,31 @@
 .rewards-balance-card {
   padding: 48px 40px;
   text-align: center;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, var(--c-surface), var(--c-surface-2));
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.rewards-balance-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 15% 25%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 15%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 85% 60%, rgba(245,166,35,.5) 0%, transparent 100%);
+  pointer-events: none;
 }
 
 .rewards-shimmer {
   height: 180px;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg, var(--c-surface) 25%, var(--c-surface-2) 50%, var(--c-surface) 75%);
   background-size: 200% 100%;
-  animation: skeleton-sweep 1.4s infinite;
+  animation: skeleton-sweep 1.5s infinite;
 }
 
 @keyframes skeleton-sweep {

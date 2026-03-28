@@ -20,6 +20,9 @@ jobs:
       - name: Install Python doc generator
         run: pip install pdoc
 
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
       - name: Generate backend docs
         run: pdoc backend --output-dir docs/backend
 

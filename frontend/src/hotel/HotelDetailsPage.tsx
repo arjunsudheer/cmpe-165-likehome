@@ -51,6 +51,11 @@ export default function HotelDetailsPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    document.body.classList.add("has-sticky-bar");
+    return () => document.body.classList.remove("has-sticky-bar");
+  }, []);
+
   const handleReserve = () => {
     if (!auth.isAuthenticated) {
       navigate(`/login`);

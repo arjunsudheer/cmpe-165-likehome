@@ -32,6 +32,7 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
@@ -49,10 +50,16 @@ export default function MyBookingsPage() {
         setError(err instanceof Error ? err.message : "Network error.");
       })
       .finally(() => setLoading(false));
-  }, [auth.isAuthenticated, navigate]);
+  }, [auth, navigate]);
 
-  const handleCancel = async (id: number) => {
-    if (!confirm("Cancel this booking?")) return;
+  const handleCancelClick = (id: number) => {
+    setConfirmCancelId(id);
+  };
+
+  const confirmCancel = async () => {
+    if (confirmCancelId === null) return;
+    const id = confirmCancelId;
+    setConfirmCancelId(null);
     setCancelling(id);
     try {
       const r = await fetch(`/reservations/${id}`, { method: "DELETE", headers: auth.authHeader() });
@@ -92,18 +99,32 @@ export default function MyBookingsPage() {
             {upcoming.length > 0 && (
               <section className="bookings-group">
                 <h2 className="group-label">Upcoming</h2>
-                {upcoming.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancel} cancelling={cancelling === b.id} />)}
+                {upcoming.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancelClick} cancelling={cancelling === b.id} />)}
               </section>
             )}
             {past.length > 0 && (
               <section className="bookings-group">
                 <h2 className="group-label">Past</h2>
-                {past.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancel} cancelling={cancelling === b.id} />)}
+                {past.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancelClick} cancelling={cancelling === b.id} />)}
               </section>
             )}
           </>
         )}
       </div>
+
+      {confirmCancelId !== null && (
+        <div className="cancel-overlay" onClick={() => setConfirmCancelId(null)}>
+          <div className="cancel-dialog card" onClick={(e) => e.stopPropagation()}>
+            <div className="cancel-icon">⚠️</div>
+            <h2 className="cancel-title">Cancel Booking?</h2>
+            <p className="cancel-sub">Are you sure you want to cancel this booking? This action cannot be undone.</p>
+            <div className="cancel-actions">
+              <button className="btn btn-secondary" onClick={() => setConfirmCancelId(null)}>Go Back</button>
+              <button className="btn btn-danger" onClick={confirmCancel}>Yes, Cancel it</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

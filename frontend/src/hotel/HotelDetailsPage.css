@@ -2,7 +2,7 @@
 .hdp { padding-bottom: 80px; }
 
 /* Gallery */
-.hdp-gallery { background: #0f172a; }
+.hdp-gallery { background: var(--c-navy-deep); }
 
 .hdp-main-photo { width: 100%; height: 420px; overflow: hidden; }
 .hdp-main-photo img { width: 100%; height: 100%; object-fit: cover; }
@@ -14,22 +14,20 @@
   gap: 6px;
   padding: 8px 32px;
   overflow-x: auto;
-  background: #0f172a;
+  background: var(--c-navy-deep);
 }
 
 .hdp-thumb {
   flex-shrink: 0;
-  width: 80px;
-  height: 56px;
+  width: 80px; height: 56px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
   background: none;
-  transition: border-color .15s;
+  transition: border-color .18s;
 }
-
 .hdp-thumb.active { border-color: var(--c-primary); }
 .hdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -49,20 +47,25 @@
   margin-bottom: 36px;
 }
 
-.hdp-name { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
+.hdp-name { font-size: 32px; font-weight: 900; color: var(--c-text); margin-bottom: 6px; }
 .hdp-location { font-size: 15px; color: var(--c-text-muted); margin-bottom: 10px; }
 
 .hdp-rating-row { display: flex; align-items: center; gap: 8px; }
 .stars { display: inline-flex; gap: 2px; }
-.star { color: #d1d5db; font-size: 16px; }
-.star.filled { color: #f59e0b; }
-.hdp-rating-num { font-size: 16px; font-weight: 700; }
+.star { color: var(--c-border); font-size: 16px; }
+.star.filled { color: var(--c-star); }
+.hdp-rating-num { font-size: 16px; font-weight: 700; color: var(--c-text); }
 .hdp-review-count { font-size: 14px; color: var(--c-text-muted); }
 
 /* Reserve block */
 .hdp-reserve-block { text-align: right; flex-shrink: 0; }
 .hdp-price { margin-bottom: 14px; }
-.hdp-price-num { font-size: 36px; font-weight: 800; }
+
+.hdp-price-num {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--c-primary);
+}
 .hdp-price-label { font-size: 16px; color: var(--c-text-muted); }
 .hdp-reserve-btn { width: 100%; font-size: 16px; padding: 14px 28px; }
 .hdp-login-hint { font-size: 12px; color: var(--c-text-light); margin-top: 8px; }
@@ -79,14 +82,15 @@
   border: 1px solid var(--c-border);
   border-radius: var(--radius-lg);
   padding: 24px 28px;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-/* Reviews span full width */
 .hdp-section-full { grid-column: 1 / -1; }
 
 .hdp-section-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
+  color: var(--c-text);
   margin-bottom: 16px;
   display: flex;
   align-items: center;
@@ -99,7 +103,7 @@
   color: var(--c-primary);
   padding: 2px 10px;
   border-radius: 99px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 /* Amenities */
@@ -115,8 +119,10 @@
   gap: 8px;
   font-size: 13px;
   padding: 9px 12px;
-  background: var(--c-bg);
+  background: var(--c-surface-2);
   border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-light);
+  color: var(--c-text-muted);
 }
 
 .hdp-amenity-icon { font-size: 18px; }
@@ -126,13 +132,16 @@
 
 .hdp-room-card {
   padding: 14px 16px;
-  background: var(--c-bg);
+  background: var(--c-surface-2);
   border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-light);
+  transition: border-color 0.2s;
 }
+.hdp-room-card:hover { border-color: var(--c-primary); }
 
-.hdp-room-type { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.hdp-room-type { font-size: 14px; font-weight: 800; color: var(--c-text); margin-bottom: 2px; }
 .hdp-room-avail { font-size: 12px; color: var(--c-text-muted); margin-bottom: 6px; }
-.hdp-room-price { font-size: 16px; font-weight: 800; color: var(--c-primary); }
+.hdp-room-price { font-size: 16px; font-weight: 900; color: var(--c-primary); }
 .hdp-room-price span { font-size: 12px; font-weight: 400; color: var(--c-text-muted); }
 
 /* Reviews list */
@@ -141,8 +150,9 @@
 
 .hdp-review {
   padding: 14px 16px;
-  background: var(--c-bg);
+  background: var(--c-surface-2);
   border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-light);
 }
 
 .hdp-review-top {
@@ -152,37 +162,42 @@
   margin-bottom: 6px;
 }
 
-.hdp-review-title { font-size: 14px; font-weight: 700; display: block; margin-bottom: 3px; }
+.hdp-review-title { font-size: 14px; font-weight: 700; color: var(--c-text); display: block; margin-bottom: 3px; }
 .hdp-review-user { font-size: 12px; color: var(--c-text-light); white-space: nowrap; }
 .hdp-review-content { font-size: 13px; color: var(--c-text-muted); line-height: 1.5; }
 
 /* Sticky reserve bottom bar */
 .hdp-sticky-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0; left: 0; right: 0;
   z-index: 500;
-  background: white;
+  background: var(--c-surface);
   border-top: 1px solid var(--c-border);
-  box-shadow: 0 -4px 16px rgba(0,0,0,.07);
+  box-shadow: 0 -4px 20px rgba(0,0,0,.25);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 14px 40px;
+  transition: background 0.3s;
 }
 
-.hdp-sticky-price { font-size: 22px; font-weight: 800; }
+.hdp-sticky-price { font-size: 22px; font-weight: 900; color: var(--c-primary); }
 .hdp-sticky-price span { font-size: 14px; font-weight: 400; color: var(--c-text-muted); }
 
-/* Loading / error states */
+/* Loading / error */
 .hdp-loading { padding: 48px 40px; display: flex; flex-direction: column; gap: 16px; }
-.hdp-skeleton { height: 420px; background: #e2e8f0; border-radius: var(--radius-lg); animation: skeleton-sweep 1.4s infinite; }
+.hdp-skeleton {
+  height: 420px;
+  background: linear-gradient(90deg, var(--c-surface) 25%, var(--c-surface-2) 50%, var(--c-surface) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-lg);
+  animation: skeleton-sweep 1.5s infinite;
+}
 .hdp-skeleton-short { height: 200px; }
 .hdp-error { margin: 40px; }
 
 @keyframes skeleton-sweep {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 

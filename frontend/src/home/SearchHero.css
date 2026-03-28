@@ -1,36 +1,91 @@
-/* Gradient hero banner */
+/* ── Night sky hero ── */
 .search-hero {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #0ea5e9 100%);
-  padding: 56px 32px 48px;
+  position: relative;
+  background: linear-gradient(160deg, #0a1628 0%, #0d2147 40%, #0a2a5e 70%, #081a3d 100%);
+  padding: 72px 32px 56px;
+  overflow: hidden;
+}
+
+/* Star particles */
+.search-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,.7) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 30% 50%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 15%, rgba(255,255,255,.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 30%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(2px 2px at 80% 10%, rgba(245,166,35,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 45%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 10% 70%, rgba(48,201,212,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 80%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 65%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(2px 2px at 25% 35%, rgba(245,166,35,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 55%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 75%, rgba(48,201,212,.4) 0%, transparent 100%);
+  animation: twinkle 4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Glowing orb accent */
+.search-hero::after {
+  content: '';
+  position: absolute;
+  top: -80px; right: -80px;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(245,166,35,.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+@keyframes twinkle {
+  0%   { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Light mode hero */
+[data-theme="light"] .search-hero {
+  background: linear-gradient(160deg, #1a3a6b 0%, #1e4d8c 40%, #1a3a6b 100%);
 }
 
 .search-hero-content {
   max-width: 980px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .search-hero-title {
-  font-size: 42px;
-  font-weight: 800;
+  font-size: 48px;
+  font-weight: 900;
   color: white;
-  letter-spacing: -1px;
-  margin-bottom: 10px;
+  letter-spacing: -1.5px;
+  margin-bottom: 12px;
+  line-height: 1.1;
+}
+
+.search-hero-title .highlight {
+  color: var(--c-primary);
 }
 
 .search-hero-sub {
   font-size: 16px;
-  color: rgba(255, 255, 255, .8);
-  margin-bottom: 32px;
+  color: rgba(255,255,255,.7);
+  margin-bottom: 36px;
+  font-weight: 400;
 }
 
-/* White pill-shaped search form */
+/* ── Search bar ── */
 .search-bar {
   display: flex;
-  background: white;
-  border-radius: 14px;
+  background: rgba(255,255,255,.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .18);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(245,166,35,.1);
   align-items: stretch;
 }
 
@@ -38,24 +93,20 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 14px 18px;
-  border-right: 1px solid var(--c-border);
+  padding: 16px 18px;
+  border-right: 1px solid rgba(255,255,255,.1);
   gap: 4px;
   min-width: 0;
 }
-
-/* Destination takes double width */
 .search-field-wide { flex: 2; }
-
-/* Guests column is intentionally compact */
 .search-field-narrow { flex: 0.6; }
 
 .search-field label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--c-text-muted);
+  letter-spacing: 1.2px;
+  color: var(--c-primary);
   white-space: nowrap;
 }
 
@@ -65,45 +116,47 @@
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
-  color: var(--c-text);
+  color: white;
   background: transparent;
   width: 100%;
   min-width: 0;
 }
+.search-field input::placeholder { color: rgba(255,255,255,.4); }
+.search-field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.5); }
 
-/* Remove browser spinners from number input — arrow keys still work */
-.search-field input[type="number"]::-webkit-inner-spin-button,
-.search-field input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
-
-/* Search submit button on far right */
+/* Search button */
 .search-submit {
   flex-shrink: 0;
-  padding: 0 28px;
+  padding: 0 32px;
   background: var(--c-primary);
-  color: white;
+  color: #0d1f3c;
   border: none;
   font-family: inherit;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: background .15s;
+  transition: background .18s, box-shadow .18s;
   white-space: nowrap;
+  letter-spacing: 0.5px;
 }
-
-.search-submit:hover:not(:disabled) { background: var(--c-primary-dark); }
-.search-submit:disabled { opacity: .6; cursor: not-allowed; }
+.search-submit:hover:not(:disabled) {
+  background: var(--c-primary-dark);
+  box-shadow: 0 0 20px rgba(245,166,35,.4);
+}
+.search-submit:disabled { opacity: .5; cursor: not-allowed; }
 
 .search-result-count {
-  margin-top: 16px;
-  color: rgba(255, 255, 255, .85);
+  margin-top: 18px;
+  color: rgba(255,255,255,.8);
   font-size: 14px;
   font-weight: 500;
 }
 
 @media (max-width: 760px) {
-  .search-bar { flex-direction: column; }
-  .search-field { border-right: none; border-bottom: 1px solid var(--c-border); }
+  .search-bar { flex-direction: column; border-radius: 12px; }
+  .search-field { border-right: none; border-bottom: 1px solid rgba(255,255,255,.1); }
   .search-field-narrow { flex: 1; }
-  .search-submit { padding: 16px; }
-  .search-hero-title { font-size: 28px; }
+  .search-submit { padding: 18px; border-radius: 0 0 12px 12px; }
+  .search-hero-title { font-size: 32px; letter-spacing: -0.5px; }
+  .search-hero { padding: 48px 20px 40px; }
 }

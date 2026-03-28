@@ -1,18 +1,17 @@
-/* Sticky header with blur backdrop */
+/* ── Sticky header ── */
 .navbar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   z-index: 1000;
   height: var(--navbar-h);
-  background: rgba(255, 255, 255, .96);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--c-border);
-  box-shadow: var(--shadow-sm);
+  background: var(--navbar-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--navbar-border);
+  box-shadow: 0 2px 20px rgba(0,0,0,.2);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-/* Max-width container */
 .navbar-inner {
   max-width: 1280px;
   margin: 0 auto;
@@ -25,80 +24,99 @@
 
 /* Brand wordmark */
 .navbar-logo {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 21px;
+  font-weight: 900;
   color: var(--c-primary);
   text-decoration: none;
   letter-spacing: -0.5px;
   flex-shrink: 0;
+  transition: opacity 0.15s;
 }
+.navbar-logo:hover { opacity: 0.85; }
 
-/* Navigation row — all items vertically centered */
+/* ── Nav links ── */
 .navbar-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* Page nav links share the same style */
 .nav-link {
-  padding: 7px 14px;
+  padding: 7px 13px;
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
   color: var(--c-text-muted);
   text-decoration: none;
-  transition: color .15s, background .15s;
+  transition: color .18s, background .18s;
   white-space: nowrap;
 }
-
-.nav-link:hover { color: var(--c-text); background: var(--c-bg); }
+.nav-link:hover { color: var(--c-text); background: var(--c-surface-2); }
 .nav-link.active { color: var(--c-primary); background: var(--c-primary-light); }
 
-/* Vertical rule separating page links from the account cluster */
+/* ── Divider ── */
 .nav-divider {
   display: inline-block;
-  width: 1px;
-  height: 20px;
+  width: 1px; height: 20px;
   background: var(--c-border);
-  margin: 0 12px;
+  margin: 0 10px;
   flex-shrink: 0;
 }
 
-/* Username — intentionally plain, no hover, clearly not a link */
+/* ── User name ── */
 .nav-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--c-text-muted);
-  max-width: 180px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: default;
   user-select: none;
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
-/* Logout — red so it is visually distinct from nav links */
+/* ── Logout ── */
 .nav-logout-btn {
-  padding: 7px 16px;
+  padding: 7px 14px;
   border-radius: var(--radius-md);
-  border: 1.5px solid #fca5a5;
-  background: #fef2f2;
-  color: #dc2626;
+  border: 1.5px solid rgba(248,113,113,.4);
+  background: rgba(248,113,113,.1);
+  color: var(--c-danger);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background .15s, border-color .15s;
+  transition: background .18s, border-color .18s;
   white-space: nowrap;
   flex-shrink: 0;
 }
-
 .nav-logout-btn:hover {
-  background: #fee2e2;
-  border-color: #f87171;
+  background: rgba(248,113,113,.2);
+  border-color: var(--c-danger);
 }
 
-/* Login button — primary style, offset from links */
-.nav-login { margin-left: 8px; padding: 8px 20px; }
+/* ── Login button ── */
+.nav-login { margin-left: 6px; padding: 8px 18px; }
+
+/* ── Theme toggle ── */
+.theme-toggle {
+  margin-left: 8px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-border);
+  background: var(--c-surface);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .18s, border-color .18s, transform .18s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--c-surface-2);
+  border-color: var(--c-primary);
+  transform: rotate(15deg) scale(1.1);
+}

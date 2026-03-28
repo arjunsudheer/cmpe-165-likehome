@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Hotel } from "./Hotel";
 import "./HotelFilter.css";
 
@@ -19,9 +19,9 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
 
   // React derived-state pattern: detect prop identity change during render
   // and reset amenity selections without a separate useEffect.
-  const prevHotelsRef = useRef(hotels);
-  if (prevHotelsRef.current !== hotels) {
-    prevHotelsRef.current = hotels;
+  const [prevHotels, setPrevHotels] = useState(hotels);
+  if (prevHotels !== hotels) {
+    setPrevHotels(hotels);
     // Calling setState during render (not inside an effect) is explicitly
     // supported by React for derived state — it re-renders once, not twice.
     setSelected([]);
@@ -38,7 +38,7 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
       return priceOk && ratingOk && amenitiesOk;
     });
     onFilter(filtered);
-  }, [hotels, maxPrice, minRating, selected]);
+  }, [hotels, maxPrice, minRating, selected, onFilter]);
 
   const toggle = (amenity: string) =>
     setSelected((prev) =>
@@ -94,8 +94,15 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
               key={r}
               className={"filter-star-btn" + (minRating === r ? " active" : "")}
               onClick={() => setMinRating(r)}
+              style={r > 0 ? { display: "flex", gap: "2px", letterSpacing: "1px" } : {}}
             >
-              {r === 0 ? "Any" : `${r}★+`}
+              {r === 0 ? "Any" : (
+                <>
+                  {Array.from({ length: r }).map((_, i) => <span key={`f-${i}`} style={{ color: "var(--c-star)" }}>★</span>)}
+                  {Array.from({ length: 5 - r }).map((_, i) => <span key={`e-${i}`} style={{ color: "var(--c-border)" }}>★</span>)}
+                  <span style={{ marginLeft: "4px" }}>&amp; up</span>
+                </>
+              )}
             </button>
           ))}
         </div>

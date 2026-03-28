@@ -8,7 +8,10 @@ class TestRegistration:
             'confirm_password': 'password'
         })
         assert response.status_code == 201
-        assert response.get_json() == {"message": "user registered successfully"}
+        json_resp = response.get_json()
+        assert "access_token" in json_resp
+        assert json_resp["email"] == "test@email.com"
+        assert json_resp["name"] == "Test User"
 
     def test_reject_missing_name(self, client):
         response = client.post('/auth/register', json={
@@ -63,7 +66,7 @@ class TestRegistration:
             'password': 'password',
         })
         assert response.status_code == 409
-        assert response.get_json() == {"message": "email already exists"}
+        assert response.get_json() == {"error": "email_exists"}
 
     def test_reject_different_case_duplicate_email(self, client):
         client.post('/auth/register', json={
@@ -77,4 +80,4 @@ class TestRegistration:
             'password': 'password',
         })
         assert response.status_code == 409
-        assert response.get_json() == {"message": "email already exists"}
+        assert response.get_json() == {"error": "email_exists"}

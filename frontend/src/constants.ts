@@ -19,14 +19,14 @@ export const ROOM_LABELS: Record<string, string> = {
   QUAD: "Quad",
 };
 
-/** Gradient backgrounds used as hotel image placeholders */
+/** Gradient backgrounds used as hotel image placeholders — Jigsaw Nights palette */
 export const CARD_GRADIENTS = [
-  "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-  "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
-  "linear-gradient(135deg, #10b981 0%, #0ea5e9 100%)",
-  "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
-  "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-  "linear-gradient(135deg, #14b8a6 0%, #3b82f6 100%)",
+  "linear-gradient(135deg, #1a3a6b 0%, #0d2147 100%)",
+  "linear-gradient(135deg, #0a2a5e 0%, #30c9d4 100%)",
+  "linear-gradient(135deg, #f5a623 0%, #d4891a 60%, #92400e 100%)",
+  "linear-gradient(135deg, #162d52 0%, #30c9d4 80%, #22b0ba 100%)",
+  "linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 50%, #f5a623 100%)",
+  "linear-gradient(135deg, #1e3d6e 0%, #0d2147 50%, #30c9d4 100%)",
 ];
 
 export const AMENITY_ICONS: Record<string, string> = {
