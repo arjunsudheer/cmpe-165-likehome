@@ -168,3 +168,39 @@
   .home-body { flex-direction: column; padding: 20px; }
   .home-body > aside { width: 100%; position: static; }
 }
+
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sort-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #6b7280);
+  margin-right: 4px;
+}
+
+.sort-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.sort-btn--active {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #0d1f3c;
+}
+
+.sort-arrow {
+  font-size: 0.8rem;
+}
