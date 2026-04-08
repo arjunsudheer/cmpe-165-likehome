@@ -54,7 +54,10 @@ def session(engine):
 def app(engine, session):
     application = create_app()
     application.config.update({"TESTING": True, "DATABASE_URI": str(engine.url)})
-    with patch("backend.auth.routes.session", session):
+    with (
+        patch("backend.auth.routes.session", session),
+        patch("backend.search.routes.session", session),
+    ):
         yield application
 
 
