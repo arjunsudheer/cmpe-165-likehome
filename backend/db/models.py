@@ -96,4 +96,5 @@ class PointsTransaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     booking_id = Column(Integer, ForeignKey("bookings.id"))
     points = Column(Integer, nullable=False)
+    log = Column(String(100), nullable=False)
     recorded_at = Column(DateTime, server_default=func.now())
