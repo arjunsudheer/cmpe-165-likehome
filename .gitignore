@@ -1,6 +1,41 @@
+# ---- Environment / secrets ----
 .env
-.venv
+.env.*
+!.env.example
+!frontend/.env.development
+
+# ---- Python ----
+.venv/
 venv/
 __pycache__/
-.DS_Store
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
+# ---- Node / frontend ----
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ---- IDE / OS ----
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Docker / runtime ----
+*.pid
+.env.example
+backend/Dockerfile
+frontend/.env.development
+backend/Dockerfile
+docker-compose.yml

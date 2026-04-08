@@ -22,8 +22,9 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
+      # Literal URL so DATABASE_URL is always set (Compose ${VAR:-default} can fail to expand on some hosts)
       DATABASE_URL: postgresql://likehome:likehome@db:5432/likehome
-      JWT_SECRET_KEY: change-this-secret-in-production
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-secret-in-production}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       # Werkzeug reloader watches for file changes
       FLASK_DEBUG: "1"

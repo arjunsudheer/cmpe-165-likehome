@@ -1,5 +1,5 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./shared/Navbar";
 import Footer from "./shared/Footer";
@@ -28,6 +28,8 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+              {/* Booking needs a hotel id — /booking alone is not valid */}
+              <Route path="/booking" element={<Navigate to="/" replace />} />
               <Route path="/booking/:hotelId" element={<Booking />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/rewards" element={<RewardsPage />} />

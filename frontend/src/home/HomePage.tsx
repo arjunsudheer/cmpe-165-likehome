@@ -168,16 +168,24 @@ export default function HomePage() {
     setSortOrder(order);
   };
 
-  // Load all hotels on mount
+  // Load all hotels on mount — default view (Vite proxies /hotels → backend :5001)
   useEffect(() => {
     fetch("/hotels/")
-      .then((r) => r.json())
-      .then((data) => {
-        const hotels: Hotel[] = data.results ?? [];
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setError((data as { error?: string }).error || `Server error (${r.status}).`);
+          return;
+        }
+        const hotels: Hotel[] = (data as { results?: Hotel[] }).results ?? [];
         setAllHotels(hotels);
         setFiltered(hotels);
       })
-      .catch(() => setError("Failed to load hotels."))
+      .catch(() =>
+        setError(
+          "Cannot reach the API. Start the backend (e.g. docker compose up, or python -m backend.app on port 5001) and keep npm run dev running.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -275,7 +283,7 @@ export default function HomePage() {
                 <div key={i} className="hotel-card hotel-card-skeleton" />
               ))}
             </div>
-          ) : displayed.length === 0 ? (
+          ) : !error && displayed.length === 0 ? (
             <div className="empty-state">
               <p>No hotels match your filters.</p>
               {hasSearched && (
@@ -284,7 +292,7 @@ export default function HomePage() {
                 </button>
               )}
             </div>
-          ) : (
+          ) : error ? null : (
             <div className="hotel-grid">
               {displayed.map((h, i) => (
                 <HotelCard key={h.id} hotel={h} index={i} />

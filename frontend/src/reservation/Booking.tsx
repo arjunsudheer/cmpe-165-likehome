@@ -48,6 +48,7 @@ export default function Booking() {
   const [stepError, setStepError] = useState("");
   const [conflict, setConflict] = useState<{ newB: BookingInfo; existingB: BookingInfo } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
   const nights = useMemo(() => calcNights(checkIn, checkOut), [checkIn, checkOut]);
@@ -56,14 +57,29 @@ export default function Booking() {
   const total = selectedOpt ? selectedOpt.price * nights : 0;
 
   useEffect(() => {
-    if (!auth.isAuthenticated) { navigate("/login"); return; }
-    if (!hotelId) return;
+    if (!auth.isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+    if (!hotelId) {
+      navigate("/", { replace: true });
+      return;
+    }
+    setLoadError("");
     fetch(`/hotels/${hotelId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) { navigate("/"); return; }
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) {
+          setLoadError(d.error || `Could not load hotel (${r.status}).`);
+          return;
+        }
+        if (d.error) {
+          navigate("/");
+          return;
+        }
         setHotel({ id: d.id, name: d.name, city: d.city, price_per_night: d.price_per_night });
-      });
+      })
+      .catch(() => setLoadError("Network error — is the backend running?"));
   }, [hotelId, auth.isAuthenticated, navigate]);
 
   // Step 1 → 2: check user conflicts, then load available rooms
@@ -145,6 +161,21 @@ export default function Booking() {
       setCreating(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <div className="booking-page">
+        <div className="booking-container">
+          <div className="alert alert-error" style={{ marginTop: 24 }}>
+            {loadError}
+          </div>
+          <p style={{ marginTop: 16 }}>
+            <Link to="/">← Back to home</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!hotel) return <div className="booking-loading">Loading…</div>;
 
