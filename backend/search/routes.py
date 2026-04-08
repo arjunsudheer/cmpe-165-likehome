@@ -35,6 +35,39 @@ def _hotel_summary(hotel):
         "amenities": list(amenities),
     }
 
+def _get_sort_clause():
+    """
+    Supported query params:
+      ?sort=price&order=asc
+      ?sort=price&order=desc
+      ?sort=rating&order=asc
+      ?sort=rating&order=desc
+    Defaults to rating desc, then price asc.
+    """
+    sort_field = request.args.get("sort", "rating").strip().lower()
+    sort_order = request.args.get("order", "desc").strip().lower()
+
+    valid_fields = {"price", "rating"}
+    valid_orders = {"asc", "desc"}
+
+    if sort_field not in valid_fields:
+        sort_field = "rating"
+    if sort_order not in valid_orders:
+        sort_order = "desc"
+
+    if sort_field == "price":
+        primary = (
+            Hotel.price_per_night.asc()
+            if sort_order == "asc"
+            else Hotel.price_per_night.desc()
+        )
+        secondary = Hotel.rating.desc()
+    else:
+        primary = Hotel.rating.asc() if sort_order == "asc" else Hotel.rating.desc()
+        secondary = Hotel.price_per_night.asc()
+
+    return [primary, secondary]
+
 
 def refresh_hotel_rating(hotel_id):
     avg = session.execute(
@@ -52,9 +85,8 @@ def refresh_hotel_rating(hotel_id):
 @search_bp.route("/", methods=["GET"])
 def get_all_hotels():
     """Default homepage view — all hotels ordered by rating."""
-    hotels = session.execute(
-        select(Hotel).order_by(Hotel.rating.desc(), Hotel.price_per_night.asc())
-    ).scalars().all()
+    sort_clause = _get_sort_clause()
+    hotels = session.execute(select(Hotel).order_by(*sort_clause)).scalars().all()
     return jsonify({"results": [_hotel_summary(h) for h in hotels]}), 200
 
 
@@ -77,10 +109,11 @@ def search_hotels():
     if check_out <= check_in:
         return jsonify({"error": "check_out must be after check_in"}), 400
 
+    sort_clause = _get_sort_clause()
     hotels = session.execute(
-        select(Hotel)
-        .where(Hotel.city.ilike(f"%{destination}%"))
-        .order_by(Hotel.rating.desc(), Hotel.price_per_night.asc())
+    select(Hotel)
+    .where(Hotel.city.ilike(f"%{destination}%"))
+    .order_by(*sort_clause)
     ).scalars().all()
 
     return jsonify({
