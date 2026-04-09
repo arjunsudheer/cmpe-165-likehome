@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [earnedPts, setEarnedPts] = useState(0);
+  const [animatedEarnedPts, setAnimatedEarnedPts] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [redirectLeft, setRedirectLeft] = useState<number | null>(null);
 
@@ -102,7 +103,25 @@ export default function CheckoutPage() {
   const maxPts = Math.min(balance, Math.floor(bookingTotal * RATE));
   const discount = pts / RATE;
   const finalTotal = Math.max(0, bookingTotal - discount);
+  const estimatedEarnedPts = Math.max(0, Math.floor(finalTotal * 10));
   const isExpired = timeLeft !== null && timeLeft === 0;
+
+  useEffect(() => {
+    if (!done || earnedPts <= 0) {
+      setAnimatedEarnedPts(0);
+      return;
+    }
+
+    let cur = 0;
+    const increment = Math.max(1, Math.ceil(earnedPts / 45));
+    const timer = setInterval(() => {
+      cur = Math.min(cur + increment, earnedPts);
+      setAnimatedEarnedPts(cur);
+      if (cur >= earnedPts) clearInterval(timer);
+    }, 24);
+
+    return () => clearInterval(timer);
+  }, [done, earnedPts]);
 
   // Handle dollar amount input
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,6 +217,13 @@ export default function CheckoutPage() {
           <div className="success-icon">✓</div>
           <h2>Booking Confirmed!</h2>
           <p className="success-ref">{booking.booking_number}</p>
+          {earnedPts > 0 && (
+            <div className="success-points-highlight" aria-live="polite">
+              <p className="points-highlight-label">Points Earned</p>
+              <p className="points-highlight-value">+{animatedEarnedPts.toLocaleString()} pts</p>
+              <p className="points-highlight-subtext">Nice! Your rewards balance has been updated.</p>
+            </div>
+          )}
           <div className="success-details">
             {[
               ["Hotel", booking.hotel_name ?? "—"],
@@ -320,6 +346,9 @@ export default function CheckoutPage() {
               <div className="final-row"><span>Room total</span><span>${bookingTotal.toFixed(2)}</span></div>
               {pts > 0 && <div className="final-row final-row-discount"><span>Rewards discount</span><span>−${discount.toFixed(2)}</span></div>}
               <div className="final-row final-row-total"><span>Total due</span><strong>${finalTotal.toFixed(2)}</strong></div>
+            </div>
+            <div className="points-preview">
+              You will earn approximately <strong>+{estimatedEarnedPts.toLocaleString()} pts</strong> from this booking.
             </div>
 
             {!selectedCard && !isExpired && (
