@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import BookingConflictWarning, { type BookingInfo } from "../mybooking/BookingConflictWarning";
 import { ROOM_LABELS, ROOM_MULTIPLIERS } from "../constants";
@@ -19,7 +19,7 @@ interface RoomOption {
   rooms: AvailRoom[];
 }
 
-interface ConflictRow { hotel_name: string | null; start_date: string; end_date: string; }
+interface ConflictRow { booking_id: number; hotel_name: string | null; start_date: string; end_date: string; }
 
 function calcNights(ci: string, co: string) {
   if (!ci || !co) return 0;
@@ -33,9 +33,11 @@ function fmtDate(iso: string) {
 
 export default function Booking() {
   const { hotelId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const auth = useAuth();
-
+  const rescheduleBookingId = searchParams.get("rescheduleBookingId");
+  const isReschedule = !!rescheduleBookingId;
   const [hotel, setHotel] = useState<HotelMeta | null>(null);
   const [step, setStep] = useState<Step>(1);
   const [checkIn, setCheckIn] = useState("");
@@ -48,6 +50,9 @@ export default function Booking() {
   const [stepError, setStepError] = useState("");
   const [conflict, setConflict] = useState<{ newB: BookingInfo; existingB: BookingInfo } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [originalCheckIn, setOriginalCheckIn] = useState("");
+  const [originalCheckOut, setOriginalCheckOut] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
   const nights = useMemo(() => calcNights(checkIn, checkOut), [checkIn, checkOut]);
@@ -66,6 +71,24 @@ export default function Booking() {
       });
   }, [hotelId, auth.isAuthenticated, navigate]);
 
+  useEffect(() => {
+    if (!isReschedule || !rescheduleBookingId || !auth.isAuthenticated) return;
+    fetch(`/reservations/${rescheduleBookingId}`, { headers: auth.authHeader() })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) {
+          setLoadError(d.error || `Could not load booking (${r.status}).`);
+          return;
+        }
+        setTitle(d.title || "");
+        setOriginalCheckIn(d.start_date || "");
+        setOriginalCheckOut(d.end_date || "");
+        setCheckIn(d.start_date || "");
+        setCheckOut(d.end_date || "");
+      })
+      .catch(() => setLoadError("Network error — is the backend running?"));
+  }, [auth, isReschedule, rescheduleBookingId]);
+
   // Step 1 → 2: check user conflicts, then load available rooms
   const goToStep2 = async (force = false) => {
     setStepError("");
@@ -76,8 +99,11 @@ export default function Booking() {
         const cp = new URLSearchParams({ start_date: checkIn, end_date: checkOut });
         const cr = await fetch(`/reservations/check-conflicts?${cp}`, { headers: auth.authHeader() });
         const cd = await cr.json();
-        if (cd.conflicts?.length > 0) {
-          const first: ConflictRow = cd.conflicts[0];
+        const conflicts: ConflictRow[] = (cd.conflicts ?? []).filter(
+          (row: ConflictRow) => !isReschedule || row.booking_id !== Number(rescheduleBookingId),
+        );
+        if (conflicts.length > 0) {
+          const first: ConflictRow = conflicts[0];
           setConflict({
             newB: { hotelName: hotel!.name, checkIn: fmtDate(checkIn), checkOut: fmtDate(checkOut) },
             existingB: { hotelName: first.hotel_name ?? "Another hotel", checkIn: fmtDate(first.start_date), checkOut: fmtDate(first.end_date) },
@@ -131,13 +157,18 @@ export default function Booking() {
     setCreating(true);
     setStepError("");
     try {
-      const res = await fetch("/reservations/", {
-        method: "POST",
+      const body = JSON.stringify({ title, room: selectedOpt.rooms[0].id, start_date: checkIn, end_date: checkOut });
+      const res = await fetch(isReschedule ? `/reservations/${rescheduleBookingId}` : "/reservations/", {
+        method: isReschedule ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json", ...auth.authHeader() },
-        body: JSON.stringify({ title, room: selectedOpt.rooms[0].id, start_date: checkIn, end_date: checkOut }),
+        body,
       });
       const data = await res.json();
       if (!res.ok) { setStepError(data.error || "Booking failed."); return; }
+      if (isReschedule) {
+        navigate("/my-bookings");
+        return;
+      }
       navigate(`/checkout?booking_id=${data.booking.id}`);
     } catch {
       setStepError("Network error — please try again.");
@@ -254,12 +285,23 @@ export default function Booking() {
             <>
               <h2>Confirm booking</h2>
               <div className="confirm-block">
+                {isReschedule && originalCheckIn && originalCheckOut && (
+                  <div className="confirm-grid" style={{ marginBottom: 12 }}>
+                    <div className="confirm-row">
+                      <span className="confirm-key">New Check-In dates</span>
+                      <strong className="confirm-val">{originalCheckIn} → {originalCheckOut}</strong>
+                    </div>
+                    <div className="confirm-row">
+                      <span className="confirm-key">New Check-Out dates</span>
+                      <strong className="confirm-val">{checkIn} → {checkOut}</strong>
+                    </div>
+                  </div>
+                )}
                 <div className="confirm-grid">
                   {[
                     ["Hotel", hotel.name],
                     ["Trip", title],
-                    ["Check-in", checkIn],
-                    ["Check-out", checkOut],
+                    ...(!isReschedule ? [["Check-in", checkIn], ["Check-out", checkOut]] : []),
                     ["Guests", String(guests)],
                     ["Room", selectedOpt.label],
                   ].map(([k, v]) => (
@@ -281,7 +323,7 @@ export default function Booking() {
               <div className="booking-actions">
                 <button className="btn btn-secondary" onClick={() => { setStep(2); setStepError(""); }}>Back</button>
                 <button className="btn btn-primary" onClick={handleConfirm} disabled={creating}>
-                  {creating ? "Creating…" : "Proceed to Checkout"}
+                  {creating ? (isReschedule ? "Saving…" : "Creating…") : (isReschedule ? "Save Changes" : "Proceed to Checkout")}
                 </button>
               </div>
             </>

@@ -245,6 +245,94 @@ def get_booking(booking_id):
         }), 200
 
 
+@reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
+@jwt_required()
+def reschedule_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    title = data.get("title")
+    room_id = data.get("room")
+    start_str = data.get("start_date")
+    end_str = data.get("end_date")
+    if not all([title, room_id, start_str, end_str]):
+        return jsonify({"error": "title, room, start_date, end_date required"}), 400
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dates must be YYYY-MM-DD"}), 400
+
+    if end_date <= start_date:
+        return jsonify({"error": "end_date must be after start_date"}), 400
+    if start_date < date.today():
+        return jsonify({"error": "start_date cannot be in the past"}), 400
+
+    with Session(engine) as db:
+        booking = db.execute(
+            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+        ).scalar_one_or_none()
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+        if booking.status in (Status.CANCELLED, Status.COMPLETED):
+            return jsonify({"error": "Booking cannot be rescheduled"}), 400
+
+        room = db.execute(
+            select(HotelRoom).where(HotelRoom.id == room_id).with_for_update()
+        ).scalar_one_or_none()
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+
+        hotel = db.get(Hotel, room.hotel)
+        if not hotel:
+            return jsonify({"error": "Hotel not found"}), 404
+
+        conflicts = [
+            c for c in check_room_availability(db, room_id, start_date, end_date)
+            if c.id != booking.id
+        ]
+        if conflicts:
+            return jsonify({
+                "error": "Room unavailable for selected dates",
+                "conflicts": [
+                    {
+                        "booking_id": c.id,
+                        "start_date": c.start_date.isoformat(),
+                        "end_date": c.end_date.isoformat(),
+                    }
+                    for c in conflicts
+                ],
+            }), 409
+
+        booking.title = title
+        booking.room = room_id
+        booking.start_date = start_date
+        booking.end_date = end_date
+        booking.total_price = calculate_total_price(hotel.price_per_night, start_date, end_date)
+        if booking.status == Status.INPROGRESS:
+            booking.expires_at = datetime.now() + timedelta(minutes=5)
+
+        db.commit()
+        return jsonify({
+            "message": "Booking updated",
+            "booking": {
+                "id": booking.id,
+                "booking_number": booking.booking_number,
+                "title": booking.title,
+                "hotel_name": hotel.name,
+                "hotel_city": hotel.city,
+                "start_date": booking.start_date.isoformat(),
+                "end_date": booking.end_date.isoformat(),
+                "total_price": str(booking.total_price),
+                "status": booking.status.value,
+                "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+            },
+        }), 200
+
+
 # ── Confirm booking — awards points ──────────────────────────────────────────
 
 @reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
