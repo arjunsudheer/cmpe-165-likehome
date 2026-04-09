@@ -4,12 +4,11 @@ EMAIL_REGEX = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
 
 
 def validate_registration(data):
-    name = data.get("name")
     email = data.get("email")
     password = data.get("password")
     # check required fields
-    if not name or not email or not password:
-        return "Email,password and confirm password are required"
+    if not email or not password:
+        return "Email and password are required"
     # email format validation
     if not re.match(EMAIL_REGEX, email):
         return "Invalid email format"

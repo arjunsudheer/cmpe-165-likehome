@@ -13,12 +13,12 @@ class TestRegistration:
         assert json_resp["email"] == "test@email.com"
         assert json_resp["name"] == "Test User"
 
-    def test_reject_missing_name(self, client):
+    def test_accept_missing_name(self, client):
         response = client.post('/auth/register', json={
-            'email': 'test@email.com',
+            'email': 'noname@example.com',
             'password': 'password',
         })
-        assert response.status_code == 400
+        assert response.status_code == 201
 
     def test_reject_empty_email_field(self, client):
         response = client.post('/auth/register', json={
