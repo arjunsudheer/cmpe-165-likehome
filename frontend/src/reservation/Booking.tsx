@@ -50,7 +50,6 @@ export default function Booking() {
   const [stepError, setStepError] = useState("");
   const [conflict, setConflict] = useState<{ newB: BookingInfo; existingB: BookingInfo } | null>(null);
   const [creating, setCreating] = useState(false);
-  const [loadError, setLoadError] = useState("");
   const [originalCheckIn, setOriginalCheckIn] = useState("");
   const [originalCheckOut, setOriginalCheckOut] = useState("");
 
@@ -77,7 +76,7 @@ export default function Booking() {
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) {
-          setLoadError(d.error || `Could not load booking (${r.status}).`);
+          setStepError(d.error || `Could not load booking (${r.status}).`);
           return;
         }
         setTitle(d.title || "");
@@ -86,7 +85,7 @@ export default function Booking() {
         setCheckIn(d.start_date || "");
         setCheckOut(d.end_date || "");
       })
-      .catch(() => setLoadError("Network error — is the backend running?"));
+      .catch(() => setStepError("Network error — is the backend running?"));
   }, [auth, isReschedule, rescheduleBookingId]);
 
   // Step 1 → 2: check user conflicts, then load available rooms
