@@ -1,6 +1,7 @@
 from datetime import date
 
 from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func, select
 
 from backend.db.db_connection import session
@@ -144,20 +145,20 @@ def get_hotel_details(hotel_id):
 
 
 @search_bp.route("/<int:hotel_id>/reviews", methods=["POST"])
+@jwt_required()
 def create_review(hotel_id):
     if session.get(Hotel, hotel_id) is None:
         return jsonify({"error": "Hotel not found"}), 404
 
-    data = request.get_json(silent=True) or {}
-    user_id = data.get("user_id")
-    rating = data.get("rating")
-
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
-    if not isinstance(rating, int) or not 1 <= rating <= 5:
-        return jsonify({"error": "rating must be integer 1–5"}), 400
+    user_id = int(get_jwt_identity())
     if not session.get(User, user_id):
         return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get("rating")
+
+    if not isinstance(rating, int) or not 1 <= rating <= 5:
+        return jsonify({"error": "rating must be integer 1–5"}), 400
 
     review = Review(
         user=user_id,
