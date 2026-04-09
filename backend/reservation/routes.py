@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from flask import jsonify, request
@@ -191,7 +191,7 @@ def create_booking():
             end_date=end_date,
             total_price=total,
             status=Status.INPROGRESS,
-            expires_at=datetime.now() + timedelta(minutes=5),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
         )
         db.add(booking)
         db.commit()
@@ -262,7 +262,7 @@ def confirm_booking(booking_id):
             return jsonify({"error": "Booking was cancelled"}), 400
         if booking.status == Status.CONFIRMED:
             return jsonify({"error": "Already confirmed"}), 400
-        if booking.expires_at and booking.expires_at < datetime.now():
+        if booking.expires_at and booking.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
             booking.status = Status.CANCELLED
             db.commit()
             return jsonify({"error": "Booking expired — please start over"}), 400
