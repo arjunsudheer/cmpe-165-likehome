@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, func
 from sqlalchemy.orm import Session
 
 from backend.db.db_connection import engine
@@ -260,7 +260,7 @@ def confirm_booking(booking_id):
             return jsonify({"error": "Booking not found"}), 404
         if booking.status == Status.CANCELLED:
             return jsonify({"error": "Booking was cancelled"}), 400
-        if booking.status == Status.CONFIRMED:
+        if booking.status in (Status.CONFIRMED, Status.COMPLETED):
             return jsonify({"error": "Already confirmed"}), 400
         if booking.expires_at and booking.expires_at < datetime.now():
             booking.status = Status.CANCELLED
@@ -303,6 +303,26 @@ def cancel_booking(booking_id):
             return jsonify({"error": "Booking not found"}), 404
         if booking.status == Status.CANCELLED:
             return jsonify({"error": "Already cancelled"}), 400
+
+        # Reverse any points earned when this booking was confirmed
+        earned = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
+
+        if earned > 0:
+            user = db.get(User, user_id)
+            if user:
+                user.points = max(0, user.points - earned)
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=-earned,
+                ))
 
         booking.status = Status.CANCELLED
         db.commit()
