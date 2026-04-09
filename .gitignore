@@ -39,3 +39,5 @@ backend/Dockerfile
 frontend/.env.development
 backend/Dockerfile
 docker-compose.yml
+frontend/package-lock.json
+frontend/package.json

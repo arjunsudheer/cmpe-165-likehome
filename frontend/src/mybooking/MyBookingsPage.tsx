@@ -132,6 +132,7 @@ export default function MyBookingsPage() {
 function BookingCard({ b, onCancel, cancelling }: { b: BookingRow; onCancel: (id: number) => void; cancelling: boolean }) {
   const n = nights(b.start_date, b.end_date);
   const canCancel = b.status === "CONFIRMED" || b.status === "INPROGRESS";
+  const canReschedule = b.status !== "CANCELLED";
 
   return (
     <div className={`booking-card card${b.status === "CANCELLED" ? " booking-card-cancelled" : ""}`}>
@@ -164,11 +165,24 @@ function BookingCard({ b, onCancel, cancelling }: { b: BookingRow; onCancel: (id
 
       <div className="booking-card-footer">
         <span className="booking-ref">{b.booking_number}</span>
-        {canCancel && (
-          <button className="btn btn-secondary booking-cancel-btn" onClick={() => onCancel(b.id)} disabled={cancelling}>
-            {cancelling ? "Cancelling…" : "Cancel"}
-          </button>
-        )}
+        <div className="booking-actions-row">
+          {canReschedule && (
+            b.hotel_id ? (
+              <Link className="btn btn-secondary booking-reschedule-btn" to={`/booking/${b.hotel_id}?rescheduleBookingId=${b.id}`}>
+                Reschedule
+              </Link>
+            ) : (
+              <button className="btn btn-secondary booking-reschedule-btn" disabled>
+                Reschedule
+              </button>
+            )
+          )}
+          {canCancel && (
+            <button className="btn btn-secondary booking-cancel-btn" onClick={() => onCancel(b.id)} disabled={cancelling}>
+              {cancelling ? "Cancelling…" : "Cancel"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
