@@ -2,9 +2,10 @@ from datetime import datetime
 from sqlalchemy import update, insert, select
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
-from backend.db.models import Booking, Status, PointsTransaction, User
+from backend.db.models import Booking, Status, PointsTransaction, User, Coupon, CouponType
 
 POINTS_PER_DOLLAR = 10
+FREE_STAY_THRESHOLD = 100000
 
 def expire_bookings():
     with Session(engine) as session:
@@ -23,7 +24,6 @@ def complete_bookings_and_earn_points():
             completed_bookings = session.scalars(
                 select(Booking)
                 .where(Booking.end_date <= datetime.now(), Booking.status==Status.CONFIRMED)
-                .with_for_update(skip_locked=True)
             ).all()
             
             for booking in completed_bookings:
@@ -38,6 +38,7 @@ def complete_bookings_and_earn_points():
                     .where(User.id == booking.user)
                     .values(points = User.points + points_earned)
                 )
+                check_points_for_free_stay(user_id=booking.user, session=session)
                 session.execute(
                     insert(PointsTransaction)
                     .values(
@@ -53,3 +54,11 @@ def complete_bookings_and_earn_points():
         except Exception as e:
             session.rollback()
             raise RuntimeError(f"Failed to update bookings: {e}") from e
+        
+def check_points_for_free_stay(user_id, session):
+    user = session.execute(select(User.id).where(User.id == user_id, User.points >= FREE_STAY_THRESHOLD)).one_or_none()
+    if user:
+        session.execute(
+            insert(Coupon)
+            .values(user_id=user_id, coupon_type=CouponType.FREESTAY, value_in_points=FREE_STAY_THRESHOLD)
+        )

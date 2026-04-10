@@ -20,6 +20,8 @@ class Status(enum.Enum):
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
+class CouponType(enum.Enum):
+    FREESTAY = "FREESTAY"
 
 class User(Base):
     __tablename__ = "users"
@@ -98,3 +100,9 @@ class PointsTransaction(Base):
     points = Column(Integer, nullable=False)
     log = Column(String(100), nullable=False)
     recorded_at = Column(DateTime, server_default=func.now())
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+    user_id = Column(Integer, ForeignKey("users.id"))
+    coupon_type = Column(Enum(CouponType), nullable=False)
+    value_in_points = Column(Integer, nullable=False)
