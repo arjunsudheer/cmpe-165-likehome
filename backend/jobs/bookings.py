@@ -1,9 +1,10 @@
 from datetime import datetime
-from sqlalchemy import update
+from sqlalchemy import update, insert, select
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
-from backend.db.models import Booking, Status
+from backend.db.models import Booking, Status, PointsTransaction, User
 
+POINTS_PER_DOLLAR = 10
 
 def expire_bookings():
     with Session(engine) as session:
@@ -15,3 +16,40 @@ def expire_bookings():
             .values(status=Status.CANCELLED)
         )
         session.commit()
+
+def complete_bookings_and_earn_points():
+    with Session(engine) as session:
+        try:
+            completed_bookings = session.scalars(
+                select(Booking)
+                .where(Booking.end_date <= datetime.now(), Booking.status==Status.CONFIRMED)
+                .with_for_update(skip_locked=True)
+            ).all()
+            
+            for booking in completed_bookings:
+                session.execute(
+                    update(Booking)
+                    .where(Booking.id == booking.id)
+                    .values(status=Status.COMPLETED)
+                )
+                points_earned = int(booking.total_price * POINTS_PER_DOLLAR)
+                session.execute(
+                    update(User)
+                    .where(User.id == booking.user)
+                    .values(points = User.points + points_earned)
+                )
+                session.execute(
+                    insert(PointsTransaction)
+                    .values(
+                        user_id = booking.user,
+                        booking_id = booking.id,
+                        points = points_earned,
+                        log = f"Earned {points_earned} points on booking #{booking.id}",
+                        recorded_at = datetime.now()
+                    )
+                )
+            session.commit()
+        
+        except Exception as e:
+            session.rollback()
+            raise RuntimeError(f"Failed to update bookings: {e}") from e
