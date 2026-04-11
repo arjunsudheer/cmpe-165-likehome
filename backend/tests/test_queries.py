@@ -20,7 +20,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=1, title='Trip', user=user.id, room=room.id, start_date=date(2027, 1, 1), end_date=date(2027, 1, 5), total_price=100.99)
+        booking = Booking(booking_number="1", title='Trip', user=user.id, room=room.id, start_date=date(2027, 1, 1), end_date=date(2027, 1, 5), total_price=100.99)
         session.add(booking)
         session.flush()
         self.user = user
@@ -54,7 +54,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2027, 1, 6), end_date=date(2027, 1, 10), total_price=100.99)
+        booking = Booking(booking_number="2", title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2027, 1, 6), end_date=date(2027, 1, 10), total_price=100.99)
         session.add(booking)
         session.flush()
         new_booking_id = booking.id
@@ -70,7 +70,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2026, 1, 6), end_date=date(2026, 1, 10), total_price=500.00)
+        booking = Booking(booking_number="2", title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2026, 1, 6), end_date=date(2026, 1, 10), total_price=500.00)
         session.add(booking)
         session.flush()
         with patch('backend.jobs.bookings.engine', session.bind):
@@ -88,7 +88,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2087, 1, 6), end_date=date(2087, 1, 10), total_price=500.00)
+        booking = Booking(booking_number="2", title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2087, 1, 6), end_date=date(2087, 1, 10), total_price=500.00)
         session.add(booking)
         session.flush()
         with patch('backend.jobs.bookings.engine', session.bind):
@@ -105,7 +105,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2025, 1, 6), end_date=date(2025, 4, 16), total_price=10000)
+        booking = Booking(booking_number="2", title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2025, 1, 6), end_date=date(2025, 4, 16), total_price=10000)
         session.add(booking)
         session.flush()
         with patch('backend.jobs.bookings.engine', session.bind):
@@ -120,7 +120,7 @@ class TestBooking:
         room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
         session.add(room)
         session.flush()
-        booking = Booking(booking_number=2, title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2025, 1, 6), end_date=date(2025, 4, 16), total_price=9999)
+        booking = Booking(booking_number="2", title='Fun Trip', user=self.user_id, room=room.id, start_date=date(2025, 1, 6), end_date=date(2025, 4, 16), total_price=9999)
         session.add(booking)
         session.flush()
         with patch('backend.jobs.bookings.engine', session.bind):
