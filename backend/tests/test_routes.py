@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from decimal import Decimal
+from backend.db.models import Hotel
 
 class TestRegistration:
 
@@ -87,7 +89,36 @@ class TestRegistration:
 
 class TestHotelSorting:
 
-    def test_get_all_hotels_sorted_by_price_asc(self, client):
+    def _seed_hotels(self, session):
+        hotels = [
+            Hotel(
+                name="Budget Inn",
+                price_per_night=Decimal("80.00"),
+                rating=Decimal("3.20"),
+                city="San Jose",
+                address="101 First St",
+            ),
+            Hotel(
+                name="Comfort Stay",
+                price_per_night=Decimal("120.00"),
+                rating=Decimal("4.50"),
+                city="San Francisco",
+                address="202 Second St",
+            ),
+            Hotel(
+                name="Luxury Suites",
+                price_per_night=Decimal("200.00"),
+                rating=Decimal("4.80"),
+                city="San Diego",
+                address="303 Third St",
+            ),
+        ]
+        session.add_all(hotels)
+        session.commit()
+
+    def test_get_all_hotels_sorted_by_price_asc(self, client, session):
+        self._seed_hotels(session)
+
         response = client.get("/hotels/?sort=price&order=asc")
         assert response.status_code == 200
 
@@ -95,7 +126,9 @@ class TestHotelSorting:
         prices = [hotel["price_per_night"] for hotel in data["results"]]
         assert prices == sorted(prices)
 
-    def test_get_all_hotels_sorted_by_price_desc(self, client):
+    def test_get_all_hotels_sorted_by_price_desc(self, client, session):
+        self._seed_hotels(session)
+
         response = client.get("/hotels/?sort=price&order=desc")
         assert response.status_code == 200
 
@@ -103,7 +136,9 @@ class TestHotelSorting:
         prices = [hotel["price_per_night"] for hotel in data["results"]]
         assert prices == sorted(prices, reverse=True)
 
-    def test_get_all_hotels_sorted_by_rating_desc(self, client):
+    def test_get_all_hotels_sorted_by_rating_desc(self, client, session):
+        self._seed_hotels(session)
+
         response = client.get("/hotels/?sort=rating&order=desc")
         assert response.status_code == 200
 
@@ -111,7 +146,19 @@ class TestHotelSorting:
         ratings = [hotel["rating"] for hotel in data["results"]]
         assert ratings == sorted(ratings, reverse=True)
 
-    def test_search_hotels_sorted_by_price_asc(self, client):
+    def test_get_all_hotels_sorted_by_rating_asc(self, client, session):
+        self._seed_hotels(session)
+
+        response = client.get("/hotels/?sort=rating&order=asc")
+        assert response.status_code == 200
+
+        data = response.get_json()
+        ratings = [hotel["rating"] for hotel in data["results"]]
+        assert ratings == sorted(ratings)
+
+    def test_search_hotels_sorted_by_price_asc(self, client, session):
+        self._seed_hotels(session)
+
         tomorrow = (date.today() + timedelta(days=1)).isoformat()
         day_after = (date.today() + timedelta(days=2)).isoformat()
 
@@ -124,7 +171,9 @@ class TestHotelSorting:
         prices = [hotel["price_per_night"] for hotel in data["results"]]
         assert prices == sorted(prices)
 
-    def test_invalid_sort_defaults_safely(self, client):
+    def test_invalid_sort_defaults_safely(self, client, session):
+        self._seed_hotels(session)
+
         response = client.get("/hotels/?sort=banana&order=sideways")
         assert response.status_code == 200
 

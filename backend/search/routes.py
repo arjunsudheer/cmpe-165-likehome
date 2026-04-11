@@ -111,9 +111,9 @@ def search_hotels():
 
     sort_clause = _get_sort_clause()
     hotels = session.execute(
-    select(Hotel)
-    .where(Hotel.city.ilike(f"%{destination}%"))
-    .order_by(*sort_clause)
+        select(Hotel)
+        .where(Hotel.city.ilike(f"%{destination}%"))
+        .order_by(*sort_clause)
     ).scalars().all()
 
     return jsonify({
