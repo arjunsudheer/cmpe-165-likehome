@@ -339,6 +339,7 @@ class TestPointsTransaction:
             user_id=user.id,
             booking_id=booking.id,
             points=200,
+            log=f"Earned 200 points on booking #{booking.id}"
         )
         session.add(txn)
         session.flush()
@@ -347,6 +348,7 @@ class TestPointsTransaction:
         assert txn.user_id == user.id
         assert txn.booking_id == booking.id
         assert txn.points == 200
+        assert txn.log == f"Earned 200 points on booking #{booking.id}"
 
     def test_points_required(self, session):
         user = User(email="no_pts@example.com", password="pw")
