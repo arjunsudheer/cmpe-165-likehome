@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import update, insert, select
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
@@ -23,7 +23,7 @@ def complete_bookings_and_earn_points():
         try:
             completed_bookings = session.scalars(
                 select(Booking)
-                .where(Booking.end_date <= datetime.now(), Booking.status==Status.CONFIRMED)
+                .where(Booking.end_date <= datetime.now(timezone.utc).replace(tzinfo=None).date(), Booking.status==Status.CONFIRMED)
             ).all()
             
             for booking in completed_bookings:

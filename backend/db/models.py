@@ -103,6 +103,7 @@ class PointsTransaction(Base):
 
 class Coupon(Base):
     __tablename__ = "coupons"
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     coupon_type = Column(Enum(CouponType), nullable=False)
     value_in_points = Column(Integer, nullable=False)
