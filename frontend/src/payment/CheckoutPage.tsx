@@ -219,9 +219,9 @@ export default function CheckoutPage() {
           <p className="success-ref">{booking.booking_number}</p>
           {earnedPts > 0 && (
             <div className="success-points-highlight" aria-live="polite">
-              <p className="points-highlight-label">Points Earned</p>
+              <p className="points-highlight-label">Points to be Earned</p>
               <p className="points-highlight-value">+{animatedEarnedPts.toLocaleString()} pts</p>
-              <p className="points-highlight-subtext">Nice! Your rewards balance will be updated after this booking is completed.</p>
+              <p className="points-highlight-subtext">Nice! Your rewards balance will be updated after this booking is complete.</p>
             </div>
           )}
           <div className="success-details">
