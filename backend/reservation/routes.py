@@ -357,11 +357,13 @@ def confirm_booking(booking_id):
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
+        points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
 
         db.commit()
         return jsonify({
             "message": "Booking confirmed",
             "booking_number": booking.booking_number,
+            "points_earned": points_earned, 
         }), 200
 
 
