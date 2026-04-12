@@ -333,7 +333,7 @@ def reschedule_booking(booking_id):
         }), 200
 
 
-# ── Confirm booking — awards points ──────────────────────────────────────────
+# ── Confirm booking ──────────────────────────────────────────
 
 @reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
 @jwt_required()
@@ -357,23 +357,13 @@ def confirm_booking(booking_id):
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
-
         points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        if points_earned > 0:
-            user = db.get(User, user_id)
-            if user:
-                user.points += points_earned
-                db.add(PointsTransaction(
-                    user_id=user_id,
-                    booking_id=booking.id,
-                    points=points_earned,
-                ))
 
         db.commit()
         return jsonify({
             "message": "Booking confirmed",
             "booking_number": booking.booking_number,
-            "points_earned": points_earned,
+            "points_earned": points_earned, 
         }), 200
 
 

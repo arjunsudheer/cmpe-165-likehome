@@ -221,7 +221,7 @@ export default function CheckoutPage() {
             <div className="success-points-highlight" aria-live="polite">
               <p className="points-highlight-label">Points Earned</p>
               <p className="points-highlight-value">+{animatedEarnedPts.toLocaleString()} pts</p>
-              <p className="points-highlight-subtext">Nice! Your rewards balance has been updated.</p>
+              <p className="points-highlight-subtext">Nice! Your rewards balance will be updated after this booking is completed.</p>
             </div>
           )}
           <div className="success-details">
