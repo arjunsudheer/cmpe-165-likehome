@@ -32,7 +32,7 @@ def complete_bookings_and_earn_points():
             completed_bookings = session.scalars(
                 select(Booking)
                 .where(
-                    Booking.end_date <= datetime.now(timezone.utc).date(),
+                    Booking.end_date < datetime.now(timezone.utc).date(),
                     Booking.status==Status.CONFIRMED
                 )
             ).all()
