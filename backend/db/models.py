@@ -23,6 +23,11 @@ class Status(enum.Enum):
 class CouponType(enum.Enum):
     FREESTAY = "FREESTAY"
 
+class CouponStatus(enum.Enum):
+    REDEEMABLE = "REDEEMABLE"
+    REDEEMED = "REDEEMED"
+    EXPIRED = "EXPIRED"
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -105,5 +110,7 @@ class Coupon(Base):
     __tablename__ = "coupons"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    coupon_type = Column(Enum(CouponType), nullable=False)
+    coupon_type = Column(Enum(CouponType, native_enum=False), nullable=False)
     value_in_points = Column(Integer, nullable=False)
+    status = Column(Enum(CouponStatus, native_enum=False), default=CouponStatus.REDEEMABLE)
+    expires_at = Column(DateTime)
