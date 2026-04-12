@@ -307,15 +307,41 @@ def reschedule_booking(booking_id):
                 ],
             }), 409
 
+        original_price = booking.total_price
+        new_price = calculate_total_price(hotel.price_per_night, start_date, end_date)
+        price_difference = new_price - original_price
+
         booking.title = title
         booking.room = room_id
         booking.start_date = start_date
         booking.end_date = end_date
-        booking.total_price = calculate_total_price(hotel.price_per_night, start_date, end_date)
+        booking.total_price = new_price
         if booking.status == Status.INPROGRESS:
             booking.expires_at = datetime.now() + timedelta(minutes=5)
 
         db.commit()
+
+        pricing_summary = {}
+        #message field unused if frontend wants to handle message formatting
+        if price_difference < 0:
+            pricing_summary = {
+                "adjustment_type": "refund",
+                "amount": str(abs(price_difference)),
+                #"message": f"You will be refunded ${abs(price_difference):.2f}",
+            }
+        elif price_difference > 0:
+            pricing_summary = {
+                "adjustment_type": "charge",
+                "amount": str(price_difference),
+                #"message": f"You will be charged an additional ${abs(price_difference):.2f}",
+            }
+        else:
+            pricing_summary = {
+                "adjustment_type": "none",
+                "amount": "0.00",
+                #"message": "No price change"
+            }
+
         return jsonify({
             "message": "Booking updated",
             "booking": {
@@ -326,10 +352,12 @@ def reschedule_booking(booking_id):
                 "hotel_city": hotel.city,
                 "start_date": booking.start_date.isoformat(),
                 "end_date": booking.end_date.isoformat(),
+                "original_price": str(original_price),
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
             },
+            "pricing_summary": pricing_summary,
         }), 200
 
 
