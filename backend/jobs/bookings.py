@@ -46,7 +46,7 @@ def complete_bookings_and_earn_points():
             )
 
             for booking in completed_bookings:
-                points_earned = int(booking.total_price * POINTS_PER_DOLLAR)
+                points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
                 session.execute(
                     update(User)
                     .where(User.id == booking.user)
