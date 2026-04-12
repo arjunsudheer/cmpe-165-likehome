@@ -8,5 +8,5 @@ def start_scheduler():
     from backend.jobs.bookings import expire_bookings, complete_bookings_and_earn_points
 
     scheduler.add_job(expire_bookings, "interval", minutes=1, misfire_grace_time=120)
-    scheduler.add_job(complete_bookings_and_earn_points, "cron", hour=0, minute=0)
+    scheduler.add_job(complete_bookings_and_earn_points, "cron", hour=0, minute=0, timezone="UTC")
     scheduler.start()
