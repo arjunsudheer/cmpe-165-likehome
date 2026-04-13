@@ -348,7 +348,7 @@ class TestRedemptionAccuracy:
 
     def test_redeem_deducts_correct_points(self, reservation_client, session):
         token, booking, user = self._confirmed_booking_fixture(
-            reservation_client, session, "test@test.com"
+            reservation_client, session, "test@test1.com"
         )
         before = user.points
         reservation_client.post(
@@ -361,7 +361,7 @@ class TestRedemptionAccuracy:
 
     def test_redeem_cannot_exceed_booking_total(self, reservation_client, session):
         token, booking, user = self._confirmed_booking_fixture(
-            reservation_client, session, "test@test.com"
+            reservation_client, session, "test@test2.com"
         )
         user.points = 99999
         session.flush()
@@ -375,7 +375,7 @@ class TestRedemptionAccuracy:
 
     def test_points_not_deducted_on_failed_redemption(self, reservation_client, session):
         token, booking, user = self._confirmed_booking_fixture(
-            reservation_client, session, "test@test.com"
+            reservation_client, session, "test@test3.com"
         )
         before = user.points
         reservation_client.post(
@@ -388,7 +388,7 @@ class TestRedemptionAccuracy:
 
     def test_partial_redeem_leaves_correct_remainder(self, reservation_client, session):
         token, booking, user = self._confirmed_booking_fixture(
-            reservation_client, session, "test@test.com"
+            reservation_client, session, "test@test4.com"
         )
         points_to_use = 200
         balance_before = user.points
@@ -403,3 +403,4 @@ class TestRedemptionAccuracy:
         updated_booking = session.get(Booking, booking.id)
         assert updated_user.points == balance_before - points_to_use
         assert updated_booking.total_price == total_before - Decimal("2.00")
+        
