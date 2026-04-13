@@ -325,3 +325,66 @@ class TestModifyReservation:
         session.expire_all()
         updated = session.get(Booking, booking.id)
         assert updated.total_price == Decimal("400.00")
+
+class TestRedemptionAccuracy:
+
+    def _auth(self, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_redeem_deducts_correct_points(self, reservation_client, session):
+        token, booking, user = self._confirmed_booking_fixture(
+            reservation_client, session, "test@test.com"
+        )
+        before = user.points
+        reservation_client.post(
+            "/rewards/redeem",
+            json={"points": 100, "booking_id": booking.id},
+            headers=self._auth(token),
+        )
+        session.expire_all()
+        assert session.get(User, user.id).points == before - 100
+
+    def test_redeem_cannot_exceed_booking_total(self, reservation_client, session):
+        token, booking, user = self._confirmed_booking_fixture(
+            reservation_client, session, "test@test.com"
+        )
+        user.points = 99999
+        session.flush()
+        excess_points = int(float(booking.total_price) * 100) + 500
+        response = reservation_client.post(
+            "/rewards/redeem",
+            json={"points": excess_points, "booking_id": booking.id},
+            headers=self._auth(token),
+        )
+        assert response.status_code == 400
+
+    def test_points_not_deducted_on_failed_redemption(self, reservation_client, session):
+        token, booking, user = self._confirmed_booking_fixture(
+            reservation_client, session, "test@test.com"
+        )
+        before = user.points
+        reservation_client.post(
+            "/rewards/redeem",
+            json={"points": -50, "booking_id": booking.id},
+            headers=self._auth(token),
+        )
+        session.expire_all()
+        assert session.get(User, user.id).points == before
+
+    def test_partial_redeem_leaves_correct_remainder(self, reservation_client, session):
+        token, booking, user = self._confirmed_booking_fixture(
+            reservation_client, session, "test@test.com"
+        )
+        points_to_use = 200
+        balance_before = user.points
+        total_before = booking.total_price
+        reservation_client.post(
+            "/rewards/redeem",
+            json={"points": points_to_use, "booking_id": booking.id},
+            headers=self._auth(token),
+        )
+        session.expire_all()
+        updated_user = session.get(User, user.id)
+        updated_booking = session.get(Booking, booking.id)
+        assert updated_user.points == balance_before - points_to_use
+        assert updated_booking.total_price == total_before - Decimal("2.00")
