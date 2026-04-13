@@ -434,6 +434,92 @@ class TestRedemptionAccuracy:
 
 class TestCancelReservationPolicy:
 
+    def test_cancellation_preview_requires_authentication(self, reservation_client, session):
+        user = _make_user(session, "preview-noauth@example.com")
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 300, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=5),
+            date.today() + timedelta(days=7),
+        )
+
+        response = reservation_client.get(f"/reservations/{booking.id}/cancellation-preview")
+
+        assert response.status_code == 401
+
+    def test_cancellation_requires_authentication(self, reservation_client, session):
+        user = _make_user(session, "cancel-noauth@example.com")
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 304, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=6),
+            date.today() + timedelta(days=8),
+        )
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+        )
+
+        assert response.status_code == 401
+
+    def test_user_cannot_preview_another_users_booking(self, reservation_client, session):
+        owner_headers = _auth_headers(reservation_client, "owner-preview@example.com")
+        _ = owner_headers
+        owner = session.query(User).filter_by(email="owner-preview@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 305, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            owner,
+            room,
+            date.today() + timedelta(days=5),
+            date.today() + timedelta(days=7),
+        )
+        other_headers = _auth_headers(reservation_client, "other-preview@example.com")
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/cancellation-preview",
+            headers=other_headers,
+        )
+
+        assert response.status_code == 404
+        assert response.get_json()["error"] == "Booking not found"
+
+    def test_user_cannot_cancel_another_users_booking(self, reservation_client, session):
+        owner_headers = _auth_headers(reservation_client, "owner-cancel@example.com")
+        _ = owner_headers
+        owner = session.query(User).filter_by(email="owner-cancel@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 306, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            owner,
+            room,
+            date.today() + timedelta(days=6),
+            date.today() + timedelta(days=8),
+        )
+        other_headers = _auth_headers(reservation_client, "other-cancel@example.com")
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=other_headers,
+        )
+
+        assert response.status_code == 404
+        assert response.get_json()["error"] == "Booking not found"
+
+        session.expire_all()
+        unchanged = session.get(Booking, booking.id)
+        assert unchanged.status == Status.CONFIRMED
+
     def test_cancellation_preview_shows_refund_and_keeps_booking_active(self, reservation_client, session):
         headers = _auth_headers(reservation_client, "cancel-preview@example.com")
         user = session.query(User).filter_by(email="cancel-preview@example.com").one()
