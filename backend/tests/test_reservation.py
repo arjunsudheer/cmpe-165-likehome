@@ -1,9 +1,11 @@
 import pytest
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
-from backend.db.models import User, Hotel, HotelRoom, Booking, RoomType, Status
+from backend.db.models import (
+    User, Hotel, HotelRoom, Booking, PointsTransaction, RoomType, Status,
+)
 from backend.reservation.utils import (
     generate_booking_number,
     check_room_availability,
@@ -68,6 +70,8 @@ def reservation_client(client, session):
     bind = session.get_bind()
     with patch("backend.reservation.routes.engine", bind), patch(
         "backend.db.queries.engine", bind
+    ), patch(
+        "backend.rewards.routes.engine", bind
     ):
         yield client
 
@@ -326,10 +330,34 @@ class TestModifyReservation:
         updated = session.get(Booking, booking.id)
         assert updated.total_price == Decimal("400.00")
 
-class TestRedemptionAccuracy:
 
-    def _auth(self, token):
-        return {"Authorization": f"Bearer {token}"}
+class TestListBookings:
+
+    def test_list_bookings_includes_inprogress_bookings(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "pending-list@example.com")
+        user = session.query(User).filter_by(email="pending-list@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 111, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date(2027, 4, 10),
+            date(2027, 4, 12),
+        )
+        booking.status = Status.INPROGRESS
+        session.flush()
+
+        response = reservation_client.get("/reservations/", headers=headers)
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert len(payload) == 1
+        assert payload[0]["id"] == booking.id
+        assert payload[0]["status"] == "INPROGRESS"
+
+
+class TestRedemptionAccuracy:
 
     def _confirmed_booking_fixture(self, client, session, email):
         headers = _auth_headers(client, email)
@@ -347,20 +375,20 @@ class TestRedemptionAccuracy:
         return headers, booking, user
 
     def test_redeem_deducts_correct_points(self, reservation_client, session):
-        token, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._confirmed_booking_fixture(
             reservation_client, session, "test@test1.com"
         )
         before = user.points
         reservation_client.post(
             "/rewards/redeem",
             json={"points": 100, "booking_id": booking.id},
-            headers=self._auth(token),
+            headers=headers,
         )
         session.expire_all()
         assert session.get(User, user.id).points == before - 100
 
     def test_redeem_cannot_exceed_booking_total(self, reservation_client, session):
-        token, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._confirmed_booking_fixture(
             reservation_client, session, "test@test2.com"
         )
         user.points = 99999
@@ -369,25 +397,25 @@ class TestRedemptionAccuracy:
         response = reservation_client.post(
             "/rewards/redeem",
             json={"points": excess_points, "booking_id": booking.id},
-            headers=self._auth(token),
+            headers=headers,
         )
         assert response.status_code == 400
 
     def test_points_not_deducted_on_failed_redemption(self, reservation_client, session):
-        token, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._confirmed_booking_fixture(
             reservation_client, session, "test@test3.com"
         )
         before = user.points
         reservation_client.post(
             "/rewards/redeem",
             json={"points": -50, "booking_id": booking.id},
-            headers=self._auth(token),
+            headers=headers,
         )
         session.expire_all()
         assert session.get(User, user.id).points == before
 
     def test_partial_redeem_leaves_correct_remainder(self, reservation_client, session):
-        token, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._confirmed_booking_fixture(
             reservation_client, session, "test@test4.com"
         )
         points_to_use = 200
@@ -396,11 +424,133 @@ class TestRedemptionAccuracy:
         reservation_client.post(
             "/rewards/redeem",
             json={"points": points_to_use, "booking_id": booking.id},
-            headers=self._auth(token),
+            headers=headers,
         )
         session.expire_all()
         updated_user = session.get(User, user.id)
         updated_booking = session.get(Booking, booking.id)
         assert updated_user.points == balance_before - points_to_use
         assert updated_booking.total_price == total_before - Decimal("2.00")
-        
+
+class TestCancelReservationPolicy:
+
+    def test_cancellation_preview_shows_refund_and_keeps_booking_active(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "cancel-preview@example.com")
+        user = session.query(User).filter_by(email="cancel-preview@example.com").one()
+        user.points = 550
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 301, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=5),
+            date.today() + timedelta(days=7),
+            price="185.00",
+        )
+        session.add_all([
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=200,
+                log="Earned points for confirmation",
+            ),
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=-150,
+                log="Redeemed points at checkout",
+            ),
+        ])
+        session.flush()
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/cancellation-preview",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["cancellation"]["fee_amount"] == "0.00"
+        assert payload["cancellation"]["refund_amount"] == "185.00"
+        assert payload["cancellation"]["points_to_restore"] == 150
+
+        session.expire_all()
+        unchanged = session.get(Booking, booking.id)
+        assert unchanged.status == Status.CONFIRMED
+
+    def test_cancellation_within_48_hours_is_rejected_and_status_stays_same(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "cancel-blocked@example.com")
+        user = session.query(User).filter_by(email="cancel-blocked@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 302, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=1),
+            date.today() + timedelta(days=3),
+        )
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        payload = response.get_json()
+        assert "48 hours" in payload["error"]
+
+        session.expire_all()
+        unchanged = session.get(Booking, booking.id)
+        assert unchanged.status == Status.CONFIRMED
+
+    def test_confirmed_cancellation_processes_refund_restores_points_and_updates_status(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "cancel-success@example.com")
+        user = session.query(User).filter_by(email="cancel-success@example.com").one()
+        user.points = 550
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 303, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=6),
+            date.today() + timedelta(days=8),
+            price="185.00",
+        )
+        session.add_all([
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=200,
+                log="Earned points for confirmation",
+            ),
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=-150,
+                log="Redeemed points at checkout",
+            ),
+        ])
+        session.flush()
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["refund"]["processed"] is True
+        assert payload["refund"]["amount"] == "185.00"
+        assert payload["refund"]["fee_amount"] == "0.00"
+        assert payload["refund"]["points_restored"] == 150
+
+        session.expire_all()
+        cancelled = session.get(Booking, booking.id)
+        updated_user = session.get(User, user.id)
+        assert cancelled.status == Status.CANCELLED
+        assert updated_user.points == 500
