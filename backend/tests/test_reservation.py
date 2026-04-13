@@ -565,6 +565,35 @@ class TestCancelReservationPolicy:
         unchanged = session.get(Booking, booking.id)
         assert unchanged.status == Status.CONFIRMED
 
+    def test_cancellation_request_without_confirmation_returns_refund_details_and_keeps_status(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "cancel-quote@example.com")
+        user = session.query(User).filter_by(email="cancel-quote@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 307, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=5),
+            date.today() + timedelta(days=7),
+            price="210.00",
+        )
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["requires_confirmation"] is True
+        assert payload["cancellation"]["refund_amount"] == "210.00"
+        assert payload["cancellation"]["fee_amount"] == "0.00"
+
+        session.expire_all()
+        unchanged = session.get(Booking, booking.id)
+        assert unchanged.status == Status.CONFIRMED
+
     def test_cancellation_within_48_hours_is_rejected_and_status_stays_same(self, reservation_client, session):
         headers = _auth_headers(reservation_client, "cancel-blocked@example.com")
         user = session.query(User).filter_by(email="cancel-blocked@example.com").one()
