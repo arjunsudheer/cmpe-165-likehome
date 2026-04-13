@@ -64,6 +64,7 @@ def get_overlapping_booking_dates(user_id, start_date, end_date):
         ).where(
             and_(
                 Booking.user == user_id,
+                Booking.status != Status.CANCELLED,
                 start_date <= Booking.end_date,
                 end_date >= Booking.start_date,
             )
