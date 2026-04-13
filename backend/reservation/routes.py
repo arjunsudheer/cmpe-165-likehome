@@ -386,6 +386,14 @@ def confirm_booking(booking_id):
         booking.status = Status.CONFIRMED
         booking.expires_at = None
         points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+        user = db.get(User, user_id)
+        user.points += points_earned
+        db.add(PointsTransaction(
+            user_id = user_id,
+            booking_id = booking_id,
+            points = points_earned,
+            log = f"Earned {points_earned} points on transaction {booking.booking_number}",
+        ))
 
         db.commit()
         return jsonify({
