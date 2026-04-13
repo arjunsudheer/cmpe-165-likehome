@@ -331,6 +331,21 @@ class TestRedemptionAccuracy:
     def _auth(self, token):
         return {"Authorization": f"Bearer {token}"}
 
+    def _confirmed_booking_fixture(self, client, session, email):
+        headers = _auth_headers(client, email)
+        user = session.query(User).filter_by(email=email).one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 101, RoomType.DOUBLE)
+        booking = _make_booking(
+            session, user, room,
+            date(2027, 6, 1), date(2027, 6, 4),
+            price="300.00",
+        )
+        booking.status = Status.CONFIRMED
+        user.points = 500
+        session.flush()
+        return headers, booking, user
+
     def test_redeem_deducts_correct_points(self, reservation_client, session):
         token, booking, user = self._confirmed_booking_fixture(
             reservation_client, session, "test@test.com"
