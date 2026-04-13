@@ -20,6 +20,13 @@ class Status(enum.Enum):
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
+class CouponType(enum.Enum):
+    FREESTAY = "FREESTAY"
+
+class CouponStatus(enum.Enum):
+    REDEEMABLE = "REDEEMABLE"
+    REDEEMED = "REDEEMED"
+    EXPIRED = "EXPIRED"
 
 class User(Base):
     __tablename__ = "users"
@@ -96,4 +103,14 @@ class PointsTransaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     booking_id = Column(Integer, ForeignKey("bookings.id"))
     points = Column(Integer, nullable=False)
+    log = Column(String(100), nullable=False)
     recorded_at = Column(DateTime, server_default=func.now())
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    coupon_type = Column(Enum(CouponType, native_enum=False), nullable=False)
+    value_in_points = Column(Integer, nullable=False)
+    status = Column(Enum(CouponStatus, native_enum=False), default=CouponStatus.REDEEMABLE)
+    expires_at = Column(DateTime)

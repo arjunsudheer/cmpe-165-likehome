@@ -1,9 +1,9 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, func
 from sqlalchemy.orm import Session
 
 from backend.db.db_connection import engine
@@ -191,7 +191,7 @@ def create_booking():
             end_date=end_date,
             total_price=total,
             status=Status.INPROGRESS,
-            expires_at=datetime.now() + timedelta(minutes=5),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
         )
         db.add(booking)
         db.commit()
@@ -245,7 +245,123 @@ def get_booking(booking_id):
         }), 200
 
 
-# ── Confirm booking — awards points ──────────────────────────────────────────
+@reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
+@jwt_required()
+def reschedule_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    title = data.get("title")
+    room_id = data.get("room")
+    start_str = data.get("start_date")
+    end_str = data.get("end_date")
+    if not all([title, room_id, start_str, end_str]):
+        return jsonify({"error": "title, room, start_date, end_date required"}), 400
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dates must be YYYY-MM-DD"}), 400
+
+    if end_date <= start_date:
+        return jsonify({"error": "end_date must be after start_date"}), 400
+    if start_date < date.today():
+        return jsonify({"error": "start_date cannot be in the past"}), 400
+
+    with Session(engine) as db:
+        booking = db.execute(
+            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+        ).scalar_one_or_none()
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+        if booking.status in (Status.CANCELLED, Status.COMPLETED):
+            return jsonify({"error": "Booking cannot be rescheduled"}), 400
+
+        room = db.execute(
+            select(HotelRoom).where(HotelRoom.id == room_id).with_for_update()
+        ).scalar_one_or_none()
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+
+        hotel = db.get(Hotel, room.hotel)
+        if not hotel:
+            return jsonify({"error": "Hotel not found"}), 404
+
+        conflicts = [
+            c for c in check_room_availability(db, room_id, start_date, end_date)
+            if c.id != booking.id
+        ]
+        if conflicts:
+            return jsonify({
+                "error": "Room unavailable for selected dates",
+                "conflicts": [
+                    {
+                        "booking_id": c.id,
+                        "start_date": c.start_date.isoformat(),
+                        "end_date": c.end_date.isoformat(),
+                    }
+                    for c in conflicts
+                ],
+            }), 409
+
+        original_price = booking.total_price
+        new_price = calculate_total_price(hotel.price_per_night, start_date, end_date)
+        price_difference = new_price - original_price
+
+        booking.title = title
+        booking.room = room_id
+        booking.start_date = start_date
+        booking.end_date = end_date
+        booking.total_price = new_price
+        if booking.status == Status.INPROGRESS:
+            booking.expires_at = datetime.now() + timedelta(minutes=5)
+
+        db.commit()
+
+        pricing_summary = {}
+        #message field unused if frontend wants to handle message formatting
+        if price_difference < 0:
+            pricing_summary = {
+                "adjustment_type": "refund",
+                "amount": str(abs(price_difference)),
+                #"message": f"You will be refunded ${abs(price_difference):.2f}",
+            }
+        elif price_difference > 0:
+            pricing_summary = {
+                "adjustment_type": "charge",
+                "amount": str(price_difference),
+                #"message": f"You will be charged an additional ${abs(price_difference):.2f}",
+            }
+        else:
+            pricing_summary = {
+                "adjustment_type": "none",
+                "amount": "0.00",
+                #"message": "No price change"
+            }
+
+        return jsonify({
+            "message": "Booking updated",
+            "booking": {
+                "id": booking.id,
+                "booking_number": booking.booking_number,
+                "title": booking.title,
+                "hotel_name": hotel.name,
+                "hotel_city": hotel.city,
+                "start_date": booking.start_date.isoformat(),
+                "end_date": booking.end_date.isoformat(),
+                "original_price": str(original_price),
+                "total_price": str(booking.total_price),
+                "status": booking.status.value,
+                "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+            },
+            "pricing_summary": pricing_summary,
+        }), 200
+
+
+# ── Confirm booking ──────────────────────────────────────────
 
 @reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
 @jwt_required()
@@ -260,32 +376,22 @@ def confirm_booking(booking_id):
             return jsonify({"error": "Booking not found"}), 404
         if booking.status == Status.CANCELLED:
             return jsonify({"error": "Booking was cancelled"}), 400
-        if booking.status == Status.CONFIRMED:
+        if booking.status in (Status.CONFIRMED, Status.COMPLETED):
             return jsonify({"error": "Already confirmed"}), 400
-        if booking.expires_at and booking.expires_at < datetime.now():
+        if booking.expires_at and booking.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
             booking.status = Status.CANCELLED
             db.commit()
             return jsonify({"error": "Booking expired — please start over"}), 400
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
-
         points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        if points_earned > 0:
-            user = db.get(User, user_id)
-            if user:
-                user.points += points_earned
-                db.add(PointsTransaction(
-                    user_id=user_id,
-                    booking_id=booking.id,
-                    points=points_earned,
-                ))
 
         db.commit()
         return jsonify({
             "message": "Booking confirmed",
             "booking_number": booking.booking_number,
-            "points_earned": points_earned,
+            "points_earned": points_earned, 
         }), 200
 
 
@@ -303,6 +409,26 @@ def cancel_booking(booking_id):
             return jsonify({"error": "Booking not found"}), 404
         if booking.status == Status.CANCELLED:
             return jsonify({"error": "Already cancelled"}), 400
+
+        # Reverse any points earned when this booking was confirmed
+        earned = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
+
+        if earned > 0:
+            user = db.get(User, user_id)
+            if user:
+                user.points = max(0, user.points - earned)
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=-earned,
+                ))
 
         booking.status = Status.CANCELLED
         db.commit()

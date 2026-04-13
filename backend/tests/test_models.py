@@ -15,6 +15,9 @@ from backend.db.models import (
     RoomType,
     Status,
     User,
+    Coupon,
+    CouponStatus,
+    CouponType
 )
 
 
@@ -339,6 +342,7 @@ class TestPointsTransaction:
             user_id=user.id,
             booking_id=booking.id,
             points=200,
+            log=f"Earned 200 points on booking #{booking.id}"
         )
         session.add(txn)
         session.flush()
@@ -347,6 +351,7 @@ class TestPointsTransaction:
         assert txn.user_id == user.id
         assert txn.booking_id == booking.id
         assert txn.points == 200
+        assert txn.log == f"Earned 200 points on booking #{booking.id}"
 
     def test_points_required(self, session):
         user = User(email="no_pts@example.com", password="pw")
@@ -413,5 +418,33 @@ class TestReview:
         session.flush()
 
         session.add(Review(user=user.id, hotel=hotel.id))
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+class TestCoupon:
+    def test_default_coupon_status(self, session):
+        user = User(email="user@example.com", password="pw")
+        session.add(user)
+        session.flush()
+        coupon = Coupon(user_id=user.id, coupon_type=CouponType.FREESTAY, value_in_points=100000)
+        session.add(coupon)
+        session.flush()
+        assert coupon.id is not None
+        assert coupon.status == CouponStatus.REDEEMABLE
+
+    def test_required_user(self, session):
+        coupon = Coupon(coupon_type=CouponType.FREESTAY)
+        session.add(coupon)
+
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+    def test_required_coupon_type(self, session):
+        user = User(email="user@example.com", password="pw")
+        session.add(user)
+        session.flush()
+        coupon = Coupon(user_id=user.id)
+        session.add(coupon)
+
         with pytest.raises(IntegrityError):
             session.flush()

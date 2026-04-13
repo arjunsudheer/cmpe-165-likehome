@@ -1,6 +1,7 @@
 import pytest
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
 from backend.db.models import User, Hotel, HotelRoom, Booking, RoomType, Status
 from backend.reservation.utils import (
@@ -39,6 +40,13 @@ def _make_room(session, hotel):
     return r
 
 
+def _make_typed_room(session, hotel, room_no, room_type):
+    r = HotelRoom(hotel=hotel.id, room=room_no, room_type=room_type)
+    session.add(r)
+    session.flush()
+    return r
+
+
 def _make_booking(session, user, room, start, end, price="200.00"):
     b = Booking(
         booking_number=generate_booking_number(),
@@ -53,6 +61,29 @@ def _make_booking(session, user, room, start, end, price="200.00"):
     session.add(b)
     session.flush()
     return b
+
+
+@pytest.fixture()
+def reservation_client(client, session):
+    bind = session.get_bind()
+    with patch("backend.reservation.routes.engine", bind), patch(
+        "backend.db.queries.engine", bind
+    ):
+        yield client
+
+
+def _auth_headers(client, email="modify@example.com"):
+    response = client.post(
+        "/auth/register",
+        json={
+            "name": "Modify Tester",
+            "email": email,
+            "password": "password123",
+        },
+    )
+    assert response.status_code == 201
+    token = response.get_json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ── Booking number generation ─────────────────────────────────────────────────
@@ -182,3 +213,115 @@ class TestBookingModel:
         b.status = Status.CANCELLED
         session.flush()
         assert b.status == Status.CANCELLED
+
+
+class TestModifyReservation:
+
+    def test_modify_booking_dates_success(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "date-change@example.com")
+        user = session.query(User).filter_by(email="date-change@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 101, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date(2027, 1, 10),
+            date(2027, 1, 12),
+            price="200.00",
+        )
+
+        response = reservation_client.patch(
+            f"/reservations/{booking.id}",
+            json={
+                "title": "Updated Test Stay",
+                "room": room.id,
+                "start_date": "2027-01-15",
+                "end_date": "2027-01-18",
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["message"] == "Booking updated"
+        assert payload["booking"]["start_date"] == "2027-01-15"
+        assert payload["booking"]["end_date"] == "2027-01-18"
+
+        session.expire_all()
+        updated = session.get(Booking, booking.id)
+        assert updated.start_date == date(2027, 1, 15)
+        assert updated.end_date == date(2027, 1, 18)
+
+    def test_modify_booking_room_success(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "room-change@example.com")
+        user = session.query(User).filter_by(email="room-change@example.com").one()
+        hotel = _make_hotel(session)
+        original_room = _make_typed_room(session, hotel, 101, RoomType.DOUBLE)
+        new_room = _make_typed_room(session, hotel, 102, RoomType.TRIPLE)
+        booking = _make_booking(
+            session,
+            user,
+            original_room,
+            date(2027, 2, 1),
+            date(2027, 2, 3),
+            price="200.00",
+        )
+
+        response = reservation_client.patch(
+            f"/reservations/{booking.id}",
+            json={
+                "title": "Updated Room Test",
+                "room": new_room.id,
+                "start_date": "2027-02-01",
+                "end_date": "2027-02-03",
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["booking"]["id"] == booking.id
+
+        session.expire_all()
+        updated = session.get(Booking, booking.id)
+        assert updated.room == new_room.id
+
+    def test_modify_booking_recalculates_total_price(
+        self, reservation_client, session
+    ):
+        headers = _auth_headers(
+            reservation_client, "cost-recalculation@example.com"
+        )
+        user = session.query(User).filter_by(
+            email="cost-recalculation@example.com"
+        ).one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 101, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date(2027, 3, 10),
+            date(2027, 3, 12),
+            price="200.00",
+        )
+
+        response = reservation_client.patch(
+            f"/reservations/{booking.id}",
+            json={
+                "title": "Updated Price Test",
+                "room": room.id,
+                "start_date": "2027-03-10",
+                "end_date": "2027-03-14",
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert Decimal(payload["booking"]["total_price"]) == Decimal("400.00")
+
+        session.expire_all()
+        updated = session.get(Booking, booking.id)
+        assert updated.total_price == Decimal("400.00")
