@@ -18,6 +18,7 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
+
 function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
   return (

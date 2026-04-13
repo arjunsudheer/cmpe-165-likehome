@@ -17,6 +17,18 @@ interface BookingRow {
   status: "INPROGRESS" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 }
 
+interface CancellationPreview {
+  booking_id: number;
+  booking_number: string;
+  status: "INPROGRESS" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+  policy_hours: number;
+  check_in_date: string;
+  cutoff_at: string;
+  fee_amount: string;
+  refund_amount: string;
+  points_to_restore: number;
+}
+
 const STATUS_LABEL = { INPROGRESS: "Pending", CONFIRMED: "Confirmed", COMPLETED: "Completed", CANCELLED: "Cancelled" };
 const STATUS_BADGE = { INPROGRESS: "badge-pending", CONFIRMED: "badge-confirmed", COMPLETED: "badge-completed", CANCELLED: "badge-cancelled" };
 
@@ -33,6 +45,9 @@ export default function MyBookingsPage() {
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState<number | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [cancelPreview, setCancelPreview] = useState<CancellationPreview | null>(null);
+  const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false);
+  const [cancelPreviewError, setCancelPreviewError] = useState("");
 
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
@@ -53,21 +68,54 @@ export default function MyBookingsPage() {
   }, [auth, navigate]);
 
   const handleCancelClick = (id: number) => {
+    setCancelPreview(null);
+    setCancelPreviewError("");
     setConfirmCancelId(id);
   };
+
+  useEffect(() => {
+    if (confirmCancelId === null) return;
+    setCancelPreviewLoading(true);
+    setCancelPreviewError("");
+
+    fetch(`/reservations/${confirmCancelId}/cancellation-preview`, {
+      headers: auth.authHeader(),
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Failed to load cancellation details.");
+        setCancelPreview(d.cancellation ?? null);
+      })
+      .catch((err) => {
+        setCancelPreview(null);
+        setCancelPreviewError(
+          err instanceof Error ? err.message : "Failed to load cancellation details.",
+        );
+      })
+      .finally(() => setCancelPreviewLoading(false));
+  }, [auth, confirmCancelId]);
 
   const confirmCancel = async () => {
     if (confirmCancelId === null) return;
     const id = confirmCancelId;
-    setConfirmCancelId(null);
     setCancelling(id);
+    setCancelPreviewError("");
     try {
-      const r = await fetch(`/reservations/${id}`, { method: "DELETE", headers: auth.authHeader() });
+      const r = await fetch(`/reservations/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...auth.authHeader() },
+        body: JSON.stringify({ confirmed: true }),
+      });
       const d = await r.json();
-      if (!r.ok) { setError(d.error || "Cancel failed."); return; }
+      if (!r.ok) {
+        setCancelPreviewError(d.error || "Cancel failed.");
+        return;
+      }
       setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: "CANCELLED" } : b));
+      setConfirmCancelId(null);
+      setCancelPreview(null);
     } catch {
-      setError("Network error.");
+      setCancelPreviewError("Network error.");
     } finally {
       setCancelling(null);
     }
@@ -117,10 +165,49 @@ export default function MyBookingsPage() {
           <div className="cancel-dialog card" onClick={(e) => e.stopPropagation()}>
             <div className="cancel-icon">⚠️</div>
             <h2 className="cancel-title">Cancel Booking?</h2>
-            <p className="cancel-sub">Are you sure you want to cancel this booking? This action cannot be undone.</p>
+            <p className="cancel-sub">
+              Review the cancellation details below before confirming.
+            </p>
+            {cancelPreviewLoading && (
+              <p className="cancel-sub">Loading refund details…</p>
+            )}
+            {!cancelPreviewLoading && cancelPreviewError && (
+              <div className="alert alert-error">{cancelPreviewError}</div>
+            )}
+            {!cancelPreviewLoading && !cancelPreviewError && cancelPreview && (
+              <div className="booking-details-grid" style={{ marginBottom: 20 }}>
+                {[
+                  ["Check-in", cancelPreview.check_in_date],
+                  ["Cancel by", new Date(cancelPreview.cutoff_at).toLocaleString()],
+                  ["Cancellation fee", `$${Number(cancelPreview.fee_amount).toFixed(2)}`],
+                  ["Refund", `$${Number(cancelPreview.refund_amount).toFixed(2)}`],
+                  ["Points restored", cancelPreview.points_to_restore.toLocaleString()],
+                ].map(([k, v]) => (
+                  <div key={k} className="booking-detail">
+                    <span className="detail-label">{k}</span>
+                    <span className="detail-value">{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="cancel-actions">
-              <button className="btn btn-secondary" onClick={() => setConfirmCancelId(null)}>Go Back</button>
-              <button className="btn btn-danger" onClick={confirmCancel}>Yes, Cancel it</button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setConfirmCancelId(null);
+                  setCancelPreview(null);
+                  setCancelPreviewError("");
+                }}
+              >
+                Go Back
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={confirmCancel}
+                disabled={cancelPreviewLoading || !!cancelPreviewError || !cancelPreview || cancelling === confirmCancelId}
+              >
+                {cancelling === confirmCancelId ? "Cancelling…" : "Confirm Cancellation"}
+              </button>
             </div>
           </div>
         </div>

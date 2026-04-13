@@ -15,10 +15,25 @@ from backend.reservation import reservation_bp
 from backend.reservation.utils import (
     calculate_total_price,
     check_room_availability,
+    get_cancellation_details,
     generate_booking_number,
 )
 
 POINTS_PER_DOLLAR = 10
+
+
+def _cancellation_payload(booking, details, points_to_restore=0):
+    return {
+        "booking_id": booking.id,
+        "booking_number": booking.booking_number,
+        "status": booking.status.value,
+        "policy_hours": details["policy_hours"],
+        "check_in_date": booking.start_date.isoformat(),
+        "cutoff_at": details["cutoff_at"].isoformat(),
+        "fee_amount": str(details["fee_amount"]),
+        "refund_amount": str(details["refund_amount"]),
+        "points_to_restore": int(points_to_restore),
+    }
 
 
 # ── User-level scheduling conflict check ─────────────────────────────────────
@@ -102,7 +117,7 @@ def list_bookings():
     with Session(engine) as db:
         bookings = db.execute(
             select(Booking)
-            .where(and_(Booking.user == user_id, Booking.status != Status.INPROGRESS))
+            .where(Booking.user == user_id)
             .order_by(Booking.created_at.desc())
         ).scalars().all()
 
@@ -405,9 +420,9 @@ def confirm_booking(booking_id):
 
 # ── Cancel booking ────────────────────────────────────────────────────────────
 
-@reservation_bp.route("/<int:booking_id>", methods=["DELETE"])
+@reservation_bp.route("/<int:booking_id>/cancellation-preview", methods=["GET"])
 @jwt_required()
-def cancel_booking(booking_id):
+def get_cancellation_preview(booking_id):
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
         booking = db.execute(
@@ -416,7 +431,74 @@ def cancel_booking(booking_id):
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
         if booking.status == Status.CANCELLED:
+            return jsonify({"error": "Booking is already cancelled"}), 400
+        if booking.status == Status.COMPLETED:
+            return jsonify({"error": "Completed bookings cannot be cancelled"}), 400
+
+        restored_points = abs(
+            db.execute(
+                select(func.sum(PointsTransaction.points)).where(
+                    and_(
+                        PointsTransaction.booking_id == booking_id,
+                        PointsTransaction.points < 0,
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+        details = get_cancellation_details(booking)
+        if not details["allowed"]:
+            return jsonify({
+                "error": "Reservations can only be cancelled at least 48 hours before check-in",
+                "cancellation": _cancellation_payload(booking, details, restored_points),
+            }), 400
+
+        return jsonify({
+            "message": "Review cancellation details before confirming",
+            "cancellation": _cancellation_payload(booking, details, restored_points),
+        }), 200
+
+@reservation_bp.route("/<int:booking_id>", methods=["DELETE"])
+@jwt_required()
+def cancel_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    confirmed = bool(data.get("confirmed"))
+    with Session(engine) as db:
+        booking = db.execute(
+            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+        ).scalar_one_or_none()
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+        if booking.status == Status.CANCELLED:
             return jsonify({"error": "Already cancelled"}), 400
+        if booking.status == Status.COMPLETED:
+            return jsonify({"error": "Completed bookings cannot be cancelled"}), 400
+
+        redeemed_points = abs(
+            db.execute(
+                select(func.sum(PointsTransaction.points)).where(
+                    and_(
+                        PointsTransaction.booking_id == booking_id,
+                        PointsTransaction.points < 0,
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+        details = get_cancellation_details(booking)
+        if not details["allowed"]:
+            return jsonify({
+                "error": "Reservations can only be cancelled at least 48 hours before check-in",
+                "cancellation": _cancellation_payload(booking, details, redeemed_points),
+            }), 400
+
+        if not confirmed:
+            return jsonify({
+                "message": "Confirm cancellation to process the refund",
+                "requires_confirmation": True,
+                "cancellation": _cancellation_payload(booking, details, redeemed_points),
+            }), 200
 
         # Reverse any points earned when this booking was confirmed
         earned = db.execute(
@@ -436,11 +518,35 @@ def cancel_booking(booking_id):
                     user_id=user_id,
                     booking_id=booking_id,
                     points=-earned,
+                    log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
+                ))
+
+        if redeemed_points > 0:
+            user = db.get(User, user_id)
+            if user:
+                user.points += redeemed_points
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=redeemed_points,
+                    log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
                 ))
 
         booking.status = Status.CANCELLED
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            return jsonify({
+                "error": "Cancellation failed. Please try again.",
+            }), 500
         return jsonify({
             "message": "Booking cancelled",
             "booking_number": booking.booking_number,
+            "refund": {
+                "processed": True,
+                "amount": str(details["refund_amount"]),
+                "fee_amount": str(details["fee_amount"]),
+                "points_restored": int(redeemed_points),
+            },
         }), 200
