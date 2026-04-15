@@ -123,6 +123,13 @@ export default function MyBookingsPage() {
 
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED" || b.status === "INPROGRESS");
   const past = bookings.filter((b) => b.status === "COMPLETED" || b.status === "CANCELLED");
+  const bookingToCancel = bookings.find((b) => b.id === confirmCancelId) ?? null;
+  const cancellationFee = bookingToCancel
+    ? (parseFloat(bookingToCancel.total_price) * 0.10).toFixed(2)
+    : null;
+  const refundAmount = bookingToCancel
+    ? (parseFloat(bookingToCancel.total_price) * 0.90).toFixed(2)
+    : null;
 
   return (
     <div className="my-bookings-page">
@@ -179,8 +186,8 @@ export default function MyBookingsPage() {
                 {[
                   ["Check-in", cancelPreview.check_in_date],
                   ["Cancel by", new Date(cancelPreview.cutoff_at).toLocaleString()],
-                  ["Cancellation fee", `$${Number(cancelPreview.fee_amount).toFixed(2)}`],
-                  ["Refund", `$${Number(cancelPreview.refund_amount).toFixed(2)}`],
+                  ["Cancellation fee", `$${cancellationFee ?? Number(cancelPreview.fee_amount).toFixed(2)}`],
+                  ["Refund", `$${refundAmount ?? Number(cancelPreview.refund_amount).toFixed(2)}`],
                   ["Points restored", cancelPreview.points_to_restore.toLocaleString()],
                 ].map(([k, v]) => (
                   <div key={k} className="booking-detail">
