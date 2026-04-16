@@ -22,6 +22,8 @@ export default function Login() {
   useEffect(() => {
     if (params.get("hint") === "exists") {
       setHint("An account with that email already exists — sign in below.");
+    } else if (params.get("hint") === "password-reset") {
+      setHint("Your password was updated — sign in with your new password below.");
     }
   }, [params]);
 
@@ -140,6 +142,10 @@ export default function Login() {
             />
             {errs.password && <span className="form-error">{errs.password}</span>}
           </div>
+
+          <p className="auth-sub" style={{ marginTop: -8, marginBottom: 0 }}>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
 
           <button
             type="submit"

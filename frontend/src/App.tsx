@@ -6,6 +6,9 @@ import Footer from "./shared/Footer";
 import HomePage from "./home/HomePage";
 import Login from "./auth/Login";
 import Register from "./auth/Register";
+import ForgotPassword from "./auth/ForgotPassword";
+import ResetPasswordSent from "./auth/ResetPasswordSent";
+import ResetPassword from "./auth/ResetPassword";
 import HotelDetailsPage from "./hotel/HotelDetailsPage";
 import Booking from "./reservation/Booking";
 import CheckoutPage from "./payment/CheckoutPage";
@@ -27,6 +30,9 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/forgot-password/sent" element={<ResetPasswordSent />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/hotel/:id" element={<HotelDetailsPage />} />
               <Route path="/booking/:hotelId" element={<Booking />} />
               <Route path="/checkout" element={<CheckoutPage />} />
