@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 export interface CancellationPreview {
   booking_id: number;
@@ -46,14 +46,6 @@ export default function CancellationConfirmDialog({
 }: CancellationConfirmDialogProps) {
   const [feeAcknowledged, setFeeAcknowledged] = useState(false);
   const ackId = useId();
-
-  useEffect(() => {
-    if (!open) setFeeAcknowledged(false);
-  }, [open]);
-
-  useEffect(() => {
-    setFeeAcknowledged(false);
-  }, [preview?.booking_id]);
 
   if (!open) return null;
 

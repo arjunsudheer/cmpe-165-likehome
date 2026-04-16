@@ -165,6 +165,11 @@ export default function MyBookingsPage() {
       </div>
 
       <CancellationConfirmDialog
+        key={
+          confirmCancelId !== null
+            ? `${confirmCancelId}-${cancelPreview?.booking_id ?? "pending"}`
+            : "closed"
+        }
         open={confirmCancelId !== null}
         onClose={() => {
           if (cancelling !== null) return;
