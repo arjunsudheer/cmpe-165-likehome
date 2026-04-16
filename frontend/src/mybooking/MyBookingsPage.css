@@ -118,17 +118,86 @@ a.booking-hotel-name:hover { color: var(--c-primary); }
   border: 1px solid var(--c-border);
   border-radius: var(--radius-lg);
   padding: 36px 32px;
-  max-width: 440px;
+  max-width: 480px;
   width: 100%;
   box-shadow: var(--shadow-lg);
-  text-align: center;
+  text-align: left;
 }
 
-.cancel-icon { font-size: 40px; margin-bottom: 12px; }
-.cancel-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
-.cancel-sub { font-size: 14px; color: var(--c-text-muted); margin-bottom: 24px; line-height: 1.5; }
+.cancel-icon { font-size: 40px; margin-bottom: 12px; text-align: center; }
+.cancel-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+.cancel-sub { font-size: 14px; color: var(--c-text-muted); margin-bottom: 20px; line-height: 1.5; text-align: center; }
 
-.cancel-actions { display: flex; gap: 10px; }
+.cancel-booking-context {
+  text-align: center;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cancel-context-hotel { font-size: 16px; font-weight: 700; color: var(--c-text); }
+.cancel-context-trip { font-size: 13px; color: var(--c-text-muted); font-weight: 600; }
+
+.cancel-loading {
+  text-align: center;
+  font-size: 14px;
+  color: var(--c-text-muted);
+  margin-bottom: 16px;
+}
+
+.cancel-dialog-alert { text-align: left; margin-bottom: 16px; }
+
+.cancel-fee-highlight {
+  background: var(--c-primary-light);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cancel-fee-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--c-text-muted);
+}
+
+.cancel-fee-value {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--c-primary);
+  letter-spacing: -0.5px;
+}
+
+.cancel-fee-note { font-size: 13px; color: var(--c-text-muted); line-height: 1.4; }
+
+.cancel-detail-grid { margin-bottom: 20px; }
+
+.cancel-ack {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--c-text);
+  margin-bottom: 24px;
+  cursor: pointer;
+}
+
+.cancel-ack-input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--c-primary);
+}
+
+.cancel-actions { display: flex; gap: 10px; margin-top: 4px; }
 .cancel-actions .btn { flex: 1; justify-content: center; }
 
 @media (max-width: 600px) {

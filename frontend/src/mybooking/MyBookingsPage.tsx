@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import CancellationConfirmDialog from "./CancellationConfirmDialog";
+import type { CancellationPreview } from "./CancellationConfirmDialog";
 import "./MyBookingsPage.css";
 
 interface BookingRow {
@@ -15,18 +17,6 @@ interface BookingRow {
   end_date: string;
   total_price: string;
   status: "INPROGRESS" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
-}
-
-interface CancellationPreview {
-  booking_id: number;
-  booking_number: string;
-  status: "INPROGRESS" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
-  policy_hours: number;
-  check_in_date: string;
-  cutoff_at: string;
-  fee_amount: string;
-  refund_amount: string;
-  points_to_restore: number;
 }
 
 const STATUS_LABEL = { INPROGRESS: "Pending", CONFIRMED: "Confirmed", COMPLETED: "Completed", CANCELLED: "Cancelled" };
@@ -48,6 +38,7 @@ export default function MyBookingsPage() {
   const [cancelPreview, setCancelPreview] = useState<CancellationPreview | null>(null);
   const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false);
   const [cancelPreviewError, setCancelPreviewError] = useState("");
+  const [cancelPolicyBlocked, setCancelPolicyBlocked] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
@@ -70,6 +61,7 @@ export default function MyBookingsPage() {
   const handleCancelClick = (id: number) => {
     setCancelPreview(null);
     setCancelPreviewError("");
+    setCancelPolicyBlocked(null);
     setConfirmCancelId(id);
   };
 
@@ -83,11 +75,21 @@ export default function MyBookingsPage() {
     })
       .then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "Failed to load cancellation details.");
-        setCancelPreview(d.cancellation ?? null);
+        if (r.ok) {
+          setCancelPolicyBlocked(null);
+          setCancelPreview(d.cancellation ?? null);
+          return;
+        }
+        if (d.cancellation) {
+          setCancelPreview(d.cancellation);
+          setCancelPolicyBlocked(d.error || "This booking cannot be cancelled online.");
+          return;
+        }
+        throw new Error(d.error || "Failed to load cancellation details.");
       })
       .catch((err) => {
         setCancelPreview(null);
+        setCancelPolicyBlocked(null);
         setCancelPreviewError(
           err instanceof Error ? err.message : "Failed to load cancellation details.",
         );
@@ -114,6 +116,7 @@ export default function MyBookingsPage() {
       setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: "CANCELLED" } : b));
       setConfirmCancelId(null);
       setCancelPreview(null);
+      setCancelPolicyBlocked(null);
     } catch {
       setCancelPreviewError("Network error.");
     } finally {
@@ -124,12 +127,6 @@ export default function MyBookingsPage() {
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED" || b.status === "INPROGRESS");
   const past = bookings.filter((b) => b.status === "COMPLETED" || b.status === "CANCELLED");
   const bookingToCancel = bookings.find((b) => b.id === confirmCancelId) ?? null;
-  const cancellationFee = bookingToCancel
-    ? (parseFloat(bookingToCancel.total_price) * 0.10).toFixed(2)
-    : null;
-  const refundAmount = bookingToCancel
-    ? (parseFloat(bookingToCancel.total_price) * 0.90).toFixed(2)
-    : null;
 
   return (
     <div className="my-bookings-page">
@@ -167,58 +164,24 @@ export default function MyBookingsPage() {
         )}
       </div>
 
-      {confirmCancelId !== null && (
-        <div className="cancel-overlay" onClick={() => setConfirmCancelId(null)}>
-          <div className="cancel-dialog card" onClick={(e) => e.stopPropagation()}>
-            <div className="cancel-icon">⚠️</div>
-            <h2 className="cancel-title">Cancel Booking?</h2>
-            <p className="cancel-sub">
-              Review the cancellation details below before confirming.
-            </p>
-            {cancelPreviewLoading && (
-              <p className="cancel-sub">Loading refund details…</p>
-            )}
-            {!cancelPreviewLoading && cancelPreviewError && (
-              <div className="alert alert-error">{cancelPreviewError}</div>
-            )}
-            {!cancelPreviewLoading && !cancelPreviewError && cancelPreview && (
-              <div className="booking-details-grid" style={{ marginBottom: 20 }}>
-                {[
-                  ["Check-in", cancelPreview.check_in_date],
-                  ["Cancel by", new Date(cancelPreview.cutoff_at).toLocaleString()],
-                  ["Cancellation fee", `$${cancellationFee ?? Number(cancelPreview.fee_amount).toFixed(2)}`],
-                  ["Refund", `$${refundAmount ?? Number(cancelPreview.refund_amount).toFixed(2)}`],
-                  ["Points restored", cancelPreview.points_to_restore.toLocaleString()],
-                ].map(([k, v]) => (
-                  <div key={k} className="booking-detail">
-                    <span className="detail-label">{k}</span>
-                    <span className="detail-value">{v}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="cancel-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setConfirmCancelId(null);
-                  setCancelPreview(null);
-                  setCancelPreviewError("");
-                }}
-              >
-                Go Back
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={confirmCancel}
-                disabled={cancelPreviewLoading || !!cancelPreviewError || !cancelPreview || cancelling === confirmCancelId}
-              >
-                {cancelling === confirmCancelId ? "Cancelling…" : "Confirm Cancellation"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CancellationConfirmDialog
+        open={confirmCancelId !== null}
+        onClose={() => {
+          if (cancelling !== null) return;
+          setConfirmCancelId(null);
+          setCancelPreview(null);
+          setCancelPreviewError("");
+          setCancelPolicyBlocked(null);
+        }}
+        preview={cancelPreview}
+        loading={cancelPreviewLoading}
+        loadError={cancelPreviewError}
+        policyBlockedMessage={cancelPolicyBlocked}
+        hotelName={bookingToCancel?.hotel_name ?? null}
+        tripTitle={bookingToCancel?.title ?? null}
+        onConfirm={confirmCancel}
+        confirming={cancelling === confirmCancelId}
+      />
     </div>
   );
 }
