@@ -1,3 +1,11 @@
+/**
+ * Password reset API (backend to implement).
+ * Forgot: POST JSON `{ email }` → 200 `{ message }`, optional `{ reset_token }` for dev.
+ * Reset: POST JSON `{ token, password }` → 200 `{ message }` or 4xx `{ error }`.
+ */
+export const AUTH_API_FORGOT_PASSWORD = "/auth/forgot-password";
+export const AUTH_API_RESET_PASSWORD = "/auth/reset-password";
+
 /** 100 points = $1.00 when redeeming */
 export const POINTS_REDEEM_RATE = 100;
 
