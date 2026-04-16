@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { AMENITY_ICONS, CARD_GRADIENTS } from "../constants";
+import HotelReviewForm from "./HotelReviewForm";
 import "./HotelDetailsPage.css";
 
 interface HotelDetail {
@@ -29,8 +30,8 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-export default function HotelDetailsPage() {
-  const { id } = useParams();
+/** Inner tree remounted via `key={hotelId}` so initial loading state resets without an effect. */
+function HotelDetailsContent({ hotelId }: { hotelId: string }) {
   const navigate = useNavigate();
   const auth = useAuth();
 
@@ -39,29 +40,41 @@ export default function HotelDetailsPage() {
   const [error, setError] = useState("");
   const [activePhoto, setActivePhoto] = useState(0);
 
-  useEffect(() => {
-    if (!id) return;
-    fetch(`/hotels/${id}`)
+  const refreshHotel = useCallback(() => {
+    fetch(`/hotels/${hotelId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) { setError(data.error); return; }
-        setHotel(data);
+        if (!data.error) setHotel(data);
       })
-      .catch(() => setError("Failed to load hotel details."))
-      .finally(() => setLoading(false));
-  }, [id]);
+      .catch(() => { /* keep existing hotel on refresh failure */ });
+  }, [hotelId]);
 
   useEffect(() => {
-    document.body.classList.add("has-sticky-bar");
-    return () => document.body.classList.remove("has-sticky-bar");
-  }, []);
+    let cancelled = false;
+    fetch(`/hotels/${hotelId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error) setError(data.error);
+        else setHotel(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load hotel details.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hotelId]);
 
   const handleReserve = () => {
     if (!auth.isAuthenticated) {
       navigate(`/login`);
       return;
     }
-    navigate(`/booking/${id}`);
+    navigate(`/booking/${hotelId}`);
   };
 
   if (loading) {
@@ -81,7 +94,6 @@ export default function HotelDetailsPage() {
 
   return (
     <div className="hdp">
-      {/* Gallery */}
       <div className="hdp-gallery">
         {hotel.photos.length > 0 ? (
           <>
@@ -108,7 +120,6 @@ export default function HotelDetailsPage() {
       </div>
 
       <div className="hdp-body">
-        {/* Info + Reserve */}
         <div className="hdp-header">
           <div>
             <h1 className="hdp-name">{hotel.name}</h1>
@@ -135,7 +146,6 @@ export default function HotelDetailsPage() {
         </div>
 
         <div className="hdp-grid">
-          {/* Amenities */}
           {hotel.amenities.length > 0 && (
             <section className="hdp-section">
               <h2 className="hdp-section-title">Amenities</h2>
@@ -150,7 +160,6 @@ export default function HotelDetailsPage() {
             </section>
           )}
 
-          {/* Room types */}
           {hotel.room_types.length > 0 && (
             <section className="hdp-section">
               <h2 className="hdp-section-title">Room Types</h2>
@@ -169,16 +178,28 @@ export default function HotelDetailsPage() {
             </section>
           )}
 
-          {/* Reviews */}
-          <section className="hdp-section hdp-section-full">
+          <section className="hdp-section hdp-section-full" id="reviews">
             <h2 className="hdp-section-title">
               Guest Reviews
               {hotel.review_count > 0 && (
                 <span className="hdp-review-badge">{hotel.rating.toFixed(1)} ★</span>
               )}
             </h2>
+
+            {auth.isAuthenticated ? (
+              <HotelReviewForm
+                hotelId={hotel.id}
+                authHeader={auth.authHeader()}
+                onSuccess={refreshHotel}
+              />
+            ) : (
+              <p className="hdp-review-login-prompt">
+                <Link to="/login">Sign in</Link> to leave a review.
+              </p>
+            )}
+
             {hotel.reviews.length === 0 ? (
-              <p className="hdp-no-reviews">No reviews yet — be the first to stay!</p>
+              <p className="hdp-no-reviews hdp-no-reviews-below-form">No reviews yet — be the first to share your stay!</p>
             ) : (
               <div className="hdp-reviews">
                 {hotel.reviews.map((rv) => (
@@ -188,7 +209,11 @@ export default function HotelDetailsPage() {
                         <span className="hdp-review-title">{rv.title}</span>
                         <Stars rating={rv.rating} />
                       </div>
-                      <span className="hdp-review-user">Guest #{rv.user_id}</span>
+                      <span className="hdp-review-user">
+                        {auth.isAuthenticated && rv.user_id === auth.userId
+                          ? "You"
+                          : `Guest #${rv.user_id}`}
+                      </span>
                     </div>
                     <p className="hdp-review-content">{rv.content}</p>
                   </div>
@@ -199,11 +224,25 @@ export default function HotelDetailsPage() {
         </div>
       </div>
 
-      {/* Sticky bottom reserve bar */}
       <div className="hdp-sticky-bar">
         <span className="hdp-sticky-price">${hotel.price_per_night.toFixed(0)}<span>/night</span></span>
-        <button className="btn btn-primary" onClick={handleReserve}>Reserve Now</button>
+        <button type="button" className="btn btn-primary" onClick={handleReserve}>Reserve Now</button>
       </div>
     </div>
   );
+}
+
+export default function HotelDetailsPage() {
+  const { id } = useParams();
+
+  useEffect(() => {
+    document.body.classList.add("has-sticky-bar");
+    return () => document.body.classList.remove("has-sticky-bar");
+  }, []);
+
+  if (!id) {
+    return <div className="hdp-error alert alert-error">Hotel not found.</div>;
+  }
+
+  return <HotelDetailsContent key={id} hotelId={id} />;
 }

@@ -144,9 +144,94 @@
 .hdp-room-price { font-size: 16px; font-weight: 900; color: var(--c-primary); }
 .hdp-room-price span { font-size: 12px; font-weight: 400; color: var(--c-text-muted); }
 
+/* Review form */
+.hdp-review-form {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--c-border-light);
+}
+
+.hdp-review-form-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+
+.hdp-review-form-hint {
+  font-size: 13px;
+  color: var(--c-text-muted);
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+.hdp-review-form-error { margin-bottom: 14px; }
+
+.hdp-review-form-stars {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.hdp-star-btn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--c-border);
+  transition: color 0.15s, transform 0.12s;
+}
+
+.hdp-star-btn:hover { color: var(--c-star); transform: scale(1.08); }
+.hdp-star-btn.active { color: var(--c-star); }
+
+.hdp-review-form-textarea {
+  resize: vertical;
+  min-height: 96px;
+  font-family: inherit;
+}
+
+.hdp-review-form-counter {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text-light);
+  align-self: flex-end;
+}
+
+.hdp-review-form .form-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hdp-review-form-submit {
+  margin-top: 8px;
+}
+
+.hdp-review-login-prompt {
+  font-size: 14px;
+  color: var(--c-text-muted);
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--c-border-light);
+}
+
+.hdp-review-login-prompt a {
+  color: var(--c-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hdp-review-login-prompt a:hover { text-decoration: underline; }
+
+.hdp-no-reviews-below-form { margin-top: 4px; }
+
 /* Reviews list */
 .hdp-no-reviews { font-size: 14px; color: var(--c-text-muted); }
-.hdp-reviews { display: flex; flex-direction: column; gap: 14px; }
+.hdp-reviews { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
 
 .hdp-review {
   padding: 14px 16px;
