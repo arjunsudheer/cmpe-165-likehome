@@ -1,7 +1,7 @@
 import enum
 
 from sqlalchemy import (
-    CheckConstraint, Column, Date, DateTime,
+    Boolean, CheckConstraint, Column, Date, DateTime,
     Enum, ForeignKey, Integer, Numeric, String, func,
 )
 from backend.db.db_connection import Base
@@ -69,6 +69,15 @@ class HotelAmenity(Base):
     id = Column(Integer, primary_key=True)
     hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
     name = Column(String(100), nullable=False)
+
+
+class CancellationPolicy(Base):
+    __tablename__ = "cancellation_policies"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False, unique=True)
+    deadline_hours = Column(Integer, nullable=False, default=48)
+    fee_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    active = Column(Boolean, nullable=False, default=True)
 
 
 class Booking(Base):
