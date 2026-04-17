@@ -7,6 +7,10 @@ import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+import os
+import smtplib
+from email.message import EmailMessage
+
 from sqlalchemy import and_, select
 
 from backend.db.models import Booking, CancellationPolicy, HotelRoom, Status
@@ -114,3 +118,42 @@ def get_cancellation_details(
         "fee_amount": fee_amount,
         "refund_amount": refund_amount,
     }
+
+
+def send_cancellation_email(
+    to_email: str,
+    booking_number: str,
+    fee_amount: Decimal,
+    refund_amount: Decimal,
+) -> bool:
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_port = os.environ.get("SMTP_PORT")
+    smtp_username = os.environ.get("SMTP_USERNAME")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    from_email = os.environ.get("SMTP_FROM_EMAIL", smtp_username or "noreply@likehome.local")
+
+    if not smtp_host or not smtp_port or not to_email:
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = f"LikeHome cancellation confirmation - {booking_number}"
+    message["From"] = from_email
+    message["To"] = to_email
+    message.set_content(
+        "\n".join([
+            "Your reservation has been cancelled.",
+            f"Booking number: {booking_number}",
+            f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
+            f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
+        ])
+    )
+
+    try:
+        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+            server.starttls()
+            if smtp_username and smtp_password:
+                server.login(smtp_username, smtp_password)
+            server.send_message(message)
+        return True
+    except Exception:
+        return False
