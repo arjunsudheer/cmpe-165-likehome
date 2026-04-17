@@ -17,6 +17,7 @@ from backend.reservation.utils import (
     check_room_availability,
     get_cancellation_details,
     generate_booking_number,
+    send_cancellation_email,
 )
 
 POINTS_PER_DOLLAR = 10
@@ -28,11 +29,16 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "booking_number": booking.booking_number,
         "status": booking.status.value,
         "policy_hours": details["policy_hours"],
+        "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
         "fee_amount": str(details["fee_amount"]),
         "refund_amount": str(details["refund_amount"]),
         "points_to_restore": int(points_to_restore),
+        "summary": {
+            "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
+            "refund_message": f'Refund amount: ${details["refund_amount"]}',
+        },
     }
 
 
@@ -446,7 +452,7 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -486,7 +492,7 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -540,6 +546,17 @@ def cancel_booking(booking_id):
             return jsonify({
                 "error": "Cancellation failed. Please try again.",
             }), 500
+
+        user = db.get(User, user_id)
+        email_sent = False
+        if user and user.email:
+            email_sent = send_cancellation_email(
+                to_email=user.email,
+                booking_number=booking.booking_number,
+                fee_amount=details["fee_amount"],
+                refund_amount=details["refund_amount"],
+            )
+
         return jsonify({
             "message": "Booking cancelled",
             "booking_number": booking.booking_number,
@@ -549,4 +566,5 @@ def cancel_booking(booking_id):
                 "fee_amount": str(details["fee_amount"]),
                 "points_restored": int(redeemed_points),
             },
+            "email_sent": email_sent,
         }), 200
