@@ -28,6 +28,7 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "booking_number": booking.booking_number,
         "status": booking.status.value,
         "policy_hours": details["policy_hours"],
+        "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
         "fee_amount": str(details["fee_amount"]),
@@ -446,7 +447,7 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -486,7 +487,7 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",

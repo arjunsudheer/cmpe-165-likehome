@@ -9,11 +9,11 @@ from decimal import Decimal
 
 from sqlalchemy import and_, select
 
-from backend.db.models import Booking, Status
+from backend.db.models import Booking, CancellationPolicy, HotelRoom, Status
 
 
-CANCELLATION_WINDOW_HOURS = 48
-CANCELLATION_FEE = Decimal("0.00")
+DEFAULT_CANCELLATION_WINDOW_HOURS = 48
+DEFAULT_CANCELLATION_FEE_PERCENT = Decimal("0.00")
 
 
 def generate_booking_number() -> str:
@@ -54,29 +54,61 @@ def check_room_availability(
     return db.execute(stmt).scalars().all()
 
 
+def get_cancellation_policy(db, booking: Booking) -> dict:
+    room = db.get(HotelRoom, booking.room)
+    if room is None:
+        return {
+            "policy_hours": DEFAULT_CANCELLATION_WINDOW_HOURS,
+            "fee_percent": DEFAULT_CANCELLATION_FEE_PERCENT,
+        }
+
+    policy = db.execute(
+        select(CancellationPolicy).where(
+            and_(
+                CancellationPolicy.hotel_id == room.hotel,
+                CancellationPolicy.active.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
+
+    if policy is None:
+        return {
+            "policy_hours": DEFAULT_CANCELLATION_WINDOW_HOURS,
+            "fee_percent": DEFAULT_CANCELLATION_FEE_PERCENT,
+        }
+
+    return {
+        "policy_hours": int(policy.deadline_hours),
+        "fee_percent": Decimal(str(policy.fee_percent)).quantize(Decimal("0.01")),
+    }
+
+
 def get_cancellation_details(
+    db,
     booking: Booking,
     now: datetime | None = None,
-    fee: Decimal = CANCELLATION_FEE,
 ) -> dict:
     """
-    Calculate whether a booking can be cancelled and the refund summary.
-
-    Because bookings only store a check-in date, we treat the start of the
-    check-in day as the cutoff anchor for the 48-hour policy.
+    Calculate whether a booking can be cancelled and the refund summary
+    using the active hotel cancellation policy.
     """
     if now is None:
         now = datetime.now()
 
+    policy = get_cancellation_policy(db, booking)
+    policy_hours = policy["policy_hours"]
+    fee_percent = policy["fee_percent"]
+
     check_in_at = datetime.combine(booking.start_date, time.min)
-    cutoff_at = check_in_at - timedelta(hours=CANCELLATION_WINDOW_HOURS)
-    fee_amount = Decimal(str(fee)).quantize(Decimal("0.01"))
+    cutoff_at = check_in_at - timedelta(hours=policy_hours)
     total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+    fee_amount = (total_price * fee_percent / Decimal("100")).quantize(Decimal("0.01"))
     refund_amount = max(Decimal("0.00"), total_price - fee_amount)
 
     return {
         "allowed": now <= cutoff_at,
-        "policy_hours": CANCELLATION_WINDOW_HOURS,
+        "policy_hours": policy_hours,
+        "fee_percent": fee_percent,
         "check_in_at": check_in_at,
         "cutoff_at": cutoff_at,
         "fee_amount": fee_amount,
