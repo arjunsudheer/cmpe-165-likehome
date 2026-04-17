@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from backend.db.db_connection import Base, engine
 from backend.db.models import (
+    CancellationPolicy,
     Hotel,
     HotelAmenity,
     HotelPhoto,
@@ -19,6 +20,22 @@ from backend.db.mock_hotels import (
 )
 from backend.db.schema_patches import ensure_points_transactions_log_column
 from backend.search.routes import refresh_hotel_rating
+
+def mock_cancellation_policies(conn):
+    hotel_ids = [row.id for row in conn.execute(select(Hotel.id)).fetchall()]
+    for hotel_id in hotel_ids:
+        existing = conn.execute(
+            select(CancellationPolicy).where(CancellationPolicy.hotel_id == hotel_id)
+        ).first()
+        if existing is None:
+            conn.execute(
+                CancellationPolicy.__table__.insert().values(
+                    hotel_id=hotel_id,
+                    deadline_hours=48,
+                    fee_percent=0,
+                    active=True,
+                )
+            )
 
 
 def init_tables_and_data():
@@ -41,6 +58,10 @@ def init_tables_and_data():
         if hotel_amenity is None:
             mock_hotel_amenities(conn)
 
+        policy = conn.execute(select(CancellationPolicy)).first()
+        if policy is None:
+            mock_cancellation_policies(conn)
+        
         user = conn.execute(select(User)).first()
         if user is None:
             mock_review_users(conn)
