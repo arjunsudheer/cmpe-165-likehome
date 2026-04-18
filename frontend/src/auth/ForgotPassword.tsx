@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AUTH_API_FORGOT_PASSWORD } from "../constants";
+import { isValidEmailFormat } from "./emailValidation";
 import "./Auth.css";
 
 interface Errs { email?: string; }
@@ -14,7 +15,7 @@ export default function ForgotPassword() {
 
   const validate = () => {
     const e: Errs = {};
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = "Enter a valid email";
+    if (!isValidEmailFormat(email)) e.email = "Enter a valid email";
     setErrs(e);
     return Object.keys(e).length === 0;
   };
