@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
+import { isValidEmailFormat } from "./emailValidation";
 import "./Auth.css";
 
 interface Errs { name?: string; email?: string; password?: string; }
@@ -29,7 +30,7 @@ export default function Register() {
   const validate = () => {
     const e: Errs = {};
     if (!form.name.trim()) e.name = "Name is required";
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Enter a valid email";
+    if (!isValidEmailFormat(form.email)) e.email = "Enter a valid email";
     if (form.password.length < 6) e.password = "At least 6 characters";
     setErrs(e);
     return Object.keys(e).length === 0;

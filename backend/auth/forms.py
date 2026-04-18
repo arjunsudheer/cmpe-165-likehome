@@ -1,6 +1,14 @@
-import re
+from email_validator import EmailNotValidError, validate_email
 
-EMAIL_REGEX = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
+
+def is_valid_email_format(email: str) -> bool:
+    try:
+        parsed = validate_email(email, check_deliverability=False)
+    except EmailNotValidError:
+        return False
+
+    top_level_domain = parsed.domain.rsplit(".", maxsplit=1)[-1]
+    return len(top_level_domain) >= 2
 
 
 def validate_registration(data):
@@ -10,7 +18,7 @@ def validate_registration(data):
     if not email or not password:
         return "Email and password are required"
     # email format validation
-    if not re.match(EMAIL_REGEX, email):
+    if not is_valid_email_format(email):
         return "Invalid email format"
     # password length validation
     if len(password) < 6:
@@ -25,6 +33,6 @@ def validate_login(data):
     if not email or not password:
         return "Email and password are required"
     # email format validation
-    if not re.match(EMAIL_REGEX, email):
+    if not is_valid_email_format(email):
         return "Invalid email format"
     return None

@@ -87,6 +87,98 @@ class TestRegistration:
         assert response.get_json() == {"error": "email_exists"}
 
 
+class TestPasswordReset:
+
+    def test_forgot_password_returns_token_for_existing_email(self, client):
+        client.post('/auth/register', json={
+            'name': 'Reset User',
+            'email': 'reset@example.com',
+            'password': 'oldpass',
+        })
+
+        response = client.post('/auth/forgot-password', json={
+            'email': 'reset@example.com',
+        })
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "password reset steps" in payload["message"]
+        assert isinstance(payload["reset_token"], str)
+
+    def test_forgot_password_rejects_unknown_email(self, client):
+        response = client.post('/auth/forgot-password', json={
+            'email': 'unknown@example.com',
+        })
+
+        assert response.status_code == 404
+        assert response.get_json() == {
+            "error": "There is no account associated with the email"
+        }
+
+    def test_forgot_password_rejects_invalid_email_format(self, client):
+        response = client.post('/auth/forgot-password', json={
+            'email': 'not-an-email',
+        })
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "error": "The email is invalid"
+        }
+
+    def test_forgot_password_rejects_invalid_domain_edge_cases(self, client):
+        invalid_emails = [
+            'wafhanowjmoqwp@.gnail.com',
+            'wafhanowjmoqwp@gmail..com',
+            'wafhanowjmoqwp@gmail.',
+            'wafhanowjmoqwp@gmail.c',
+        ]
+
+        for email in invalid_emails:
+            response = client.post('/auth/forgot-password', json={'email': email})
+            assert response.status_code == 400
+            assert response.get_json() == {"error": "The email is invalid"}
+
+    def test_reset_password_updates_login_password(self, client):
+        client.post('/auth/register', json={
+            'name': 'Reset Login User',
+            'email': 'reset-login@example.com',
+            'password': 'oldpass',
+        })
+        token = client.post('/auth/forgot-password', json={
+            'email': 'reset-login@example.com',
+        }).get_json()["reset_token"]
+
+        response = client.post('/auth/reset-password', json={
+            'token': token,
+            'password': 'newpass123',
+        })
+
+        assert response.status_code == 200
+        assert response.get_json() == {"message": "Password updated"}
+
+        old_login = client.post('/auth/login', json={
+            'email': 'reset-login@example.com',
+            'password': 'oldpass',
+        })
+        assert old_login.status_code == 401
+
+        new_login = client.post('/auth/login', json={
+            'email': 'reset-login@example.com',
+            'password': 'newpass123',
+        })
+        assert new_login.status_code == 200
+        assert "access_token" in new_login.get_json()
+
+    def test_reset_password_rejects_bad_token(self, client):
+        response = client.post('/auth/reset-password', json={
+            'token': 'not-a-real-token',
+            'password': 'newpass123',
+        })
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "Invalid reset token"}
+
+
 class TestHotelSorting:
 
     def _seed_hotels(self, session):
