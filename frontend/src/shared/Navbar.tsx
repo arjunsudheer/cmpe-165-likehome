@@ -64,6 +64,12 @@ export default function Navbar() {
               >
                 My Bookings
               </NavLink>
+              <NavLink
+                to="/settings"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Settings
+              </NavLink>
 
               <span className="nav-divider" aria-hidden="true" />
               <span className="nav-name">{auth.name || auth.email}</span>
