@@ -10,6 +10,8 @@ def create_app():
         "JWT_SECRET_KEY", "likehome-dev-secret-change-in-prod"
     )
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
+    # Empty string means Google OAuth is disabled — the frontend hides the button
+    app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID", "")
 
     bcrypt.init_app(app)
     JWTManager(app)

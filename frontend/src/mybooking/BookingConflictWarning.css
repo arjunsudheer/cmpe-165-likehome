@@ -12,7 +12,9 @@
 
 /* Modal card */
 .conflict-dialog {
-  background: white;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
   border-radius: var(--radius-lg);
   padding: 36px 32px;
   max-width: 440px;
@@ -34,7 +36,10 @@
   padding: 14px 16px;
 }
 
-.conflict-booking--existing { border-color: #fecaca; background: #fef2f2; }
+.conflict-booking--existing {
+  border-color: var(--c-danger);
+  background: var(--c-surface-2);
+}
 
 .conflict-vs {
   text-align: center;
@@ -56,7 +61,7 @@
 }
 
 .conflict-tag--new { background: var(--c-primary-light); color: var(--c-primary); }
-.conflict-tag--existing { background: #fee2e2; color: var(--c-danger); }
+.conflict-tag--existing { background: rgba(248,113,113,.15); color: var(--c-danger); }
 
 .conflict-hotel { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
 .conflict-dates { font-size: 13px; color: var(--c-text-muted); }

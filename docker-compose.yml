@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: likehome
+      POSTGRES_PASSWORD: likehome
+      POSTGRES_DB: likehome
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U likehome -d likehome"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://likehome:likehome@db:5432/likehome
+      JWT_SECRET_KEY: change-this-secret-in-production
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Werkzeug reloader watches for file changes
+      FLASK_DEBUG: "1"
+    volumes:
+      # Bind-mount source so Flask's reloader picks up changes without rebuild
+      - ./backend:/app/backend
+    ports:
+      - "5001:5001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_BACKEND_URL: http://backend:5001
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    volumes:
+      # Bind-mount source so Vite HMR picks up changes without rebuild
+      - ./frontend/src:/app/src
+      # Anonymous volume keeps the container's node_modules intact
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

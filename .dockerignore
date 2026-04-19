@@ -1,0 +1,18 @@
+# Python
+backend/venv/
+backend/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Git / editor
+.git/
+.gitignore
+**/.DS_Store
+**/*.swp

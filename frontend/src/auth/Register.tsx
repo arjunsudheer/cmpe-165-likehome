@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
@@ -10,11 +11,17 @@ export default function Register() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  // Pre-fill email when redirected here from Login's "email not found" path
-  const [form, setForm] = useState({ name: "", email: params.get("email") || "", password: "" });
+  // Pre-fill email when redirected from Login's "email not found" path
+  const [form, setForm] = useState({
+    name: "",
+    email: params.get("email") || "",
+    password: "",
+  });
   const [errs, setErrs] = useState<Errs>({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
@@ -26,6 +33,13 @@ export default function Register() {
     if (form.password.length < 6) e.password = "At least 6 characters";
     setErrs(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleSuccess = (data: {
+    access_token: string; user_id: number; email: string; name: string | null;
+  }) => {
+    login({ token: data.access_token, userId: data.user_id, email: data.email, name: data.name });
+    navigate("/");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,14 +57,11 @@ export default function Register() {
       const data = await res.json();
 
       if (res.status === 409) {
-        // Email already exists — redirect to login
         navigate("/login?hint=exists&email=" + encodeURIComponent(form.email));
         return;
       }
       if (!res.ok) { setApiError(data.error || "Registration failed."); return; }
-
-      login({ token: data.access_token, userId: data.user_id, email: data.email, name: data.name });
-      navigate("/");
+      handleSuccess(data);
     } catch {
       setApiError("Network error — please try again.");
     } finally {
@@ -58,47 +69,113 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) return;
+    setApiError("");
+    try {
+      const res = await fetch("/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setApiError(data.error || "Google sign-in failed."); return; }
+      handleSuccess(data);
+    } catch {
+      setApiError("Network error — please try again.");
+    }
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <h1>LikeHome</h1>
-        <p>Create an account to start booking and earning rewards.</p>
-        <ul className="auth-perks">
-          <li>🏨 Thousands of hotels</li>
-          <li>🎁 Earn rewards on every stay</li>
-          <li>⚡ Instant confirmation</li>
-        </ul>
+        <div className="auth-brand-content">
+          <div className="auth-brand-logo">
+            LikeHome
+          </div>
+          <h1>Find your perfect stay.</h1>
+          <p>Create an account to start booking hotels and earning rewards on every stay.</p>
+          <ul className="auth-perks">
+            <li>🏨 Thousands of hotels worldwide</li>
+            <li>🎁 Earn rewards on every booking</li>
+            <li>💳 Save cards for fast checkout</li>
+            <li>⚡ Instant booking confirmation</li>
+          </ul>
+        </div>
       </div>
 
       <div className="auth-card">
         <h2>Create Account</h2>
-        <p className="auth-sub">Already have an account? <Link to="/login">Sign in</Link></p>
+        <p className="auth-sub">
+          Already have an account? <Link to="/login">Sign in</Link>
+        </p>
 
         {apiError && <div className="alert alert-error">{apiError}</div>}
 
         <form onSubmit={handleSubmit} noValidate className="auth-form">
           <div className="form-group">
             <label className="form-label">Full name</label>
-            <input className={`form-input${errs.name ? " error" : ""}`} type="text" placeholder="Jane Smith" value={form.name} onChange={set("name")} autoComplete="name" />
+            <input
+              className={`form-input${errs.name ? " error" : ""}`}
+              type="text"
+              placeholder="Jane Smith"
+              value={form.name}
+              onChange={set("name")}
+              autoComplete="name"
+            />
             {errs.name && <span className="form-error">{errs.name}</span>}
           </div>
 
           <div className="form-group">
             <label className="form-label">Email address</label>
-            <input className={`form-input${errs.email ? " error" : ""}`} type="email" placeholder="jane@example.com" value={form.email} onChange={set("email")} autoComplete="email" />
+            <input
+              className={`form-input${errs.email ? " error" : ""}`}
+              type="email"
+              placeholder="jane@example.com"
+              value={form.email}
+              onChange={set("email")}
+              autoComplete="email"
+            />
             {errs.email && <span className="form-error">{errs.email}</span>}
           </div>
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input className={`form-input${errs.password ? " error" : ""}`} type="password" placeholder="At least 6 characters" value={form.password} onChange={set("password")} autoComplete="new-password" />
+            <input
+              className={`form-input${errs.password ? " error" : ""}`}
+              type="password"
+              placeholder="At least 6 characters"
+              value={form.password}
+              onChange={set("password")}
+              autoComplete="new-password"
+            />
             {errs.password && <span className="form-error">{errs.password}</span>}
           </div>
 
-          <button type="submit" className="btn btn-primary btn-lg auth-submit" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg auth-submit"
+            disabled={loading}
+          >
             {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
+
+        {/* Only render Google button when a client ID is configured */}
+        {googleClientId && (
+          <>
+            <div className="auth-divider">or continue with</div>
+            <div className="google-btn-wrapper">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setApiError("Google sign-in failed — please try again.")}
+                text="signup_with"
+                shape="rectangular"
+                width="320"
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

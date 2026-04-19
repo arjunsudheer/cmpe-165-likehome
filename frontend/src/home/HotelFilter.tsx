@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Hotel } from "./Hotel";
 import "./HotelFilter.css";
 
@@ -12,31 +12,37 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
   const [minRating, setMinRating] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
 
-  // Derive unique amenities from whatever hotel list is active
-  const allAmenities = useMemo(() => {
-    const set = new Set<string>();
-    hotels.forEach((h) => h.amenities.forEach((a) => set.add(a)));
-    return Array.from(set).sort();
-  }, [hotels]);
+  // Derive unique amenities from the active hotel list
+  const allAmenities = Array.from(
+    new Set(hotels.flatMap((h) => h.amenities))
+  ).sort();
 
-  // Reset amenity selection when the hotel list changes (new search)
-  useEffect(() => { setSelected([]); }, [hotels]);
+  // React derived-state pattern: detect prop identity change during render
+  // and reset amenity selections without a separate useEffect.
+  const [prevHotels, setPrevHotels] = useState(hotels);
+  if (prevHotels !== hotels) {
+    setPrevHotels(hotels);
+    // Calling setState during render (not inside an effect) is explicitly
+    // supported by React for derived state — it re-renders once, not twice.
+    setSelected([]);
+  }
 
-  // Re-filter immediately on any state change — no apply button required
+  // Re-filter whenever any filter value or hotel list changes
   useEffect(() => {
     const filtered = hotels.filter((h) => {
       const priceOk = h.price_per_night <= maxPrice;
       const ratingOk = h.rating >= minRating;
       const amenitiesOk =
-        selected.length === 0 || selected.every((a) => h.amenities.includes(a));
+        selected.length === 0 ||
+        selected.every((a) => h.amenities.includes(a));
       return priceOk && ratingOk && amenitiesOk;
     });
     onFilter(filtered);
-  }, [hotels, maxPrice, minRating, selected]);
+  }, [hotels, maxPrice, minRating, selected, onFilter]);
 
   const toggle = (amenity: string) =>
     setSelected((prev) =>
-      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity],
+      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
     );
 
   const hasActive = maxPrice < 1000 || minRating > 0 || selected.length > 0;
@@ -48,7 +54,11 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
         {hasActive && (
           <button
             className="filter-reset"
-            onClick={() => { setMaxPrice(1000); setMinRating(0); setSelected([]); }}
+            onClick={() => {
+              setMaxPrice(1000);
+              setMinRating(0);
+              setSelected([]);
+            }}
           >
             Clear all
           </button>
@@ -69,10 +79,13 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
           onChange={(e) => setMaxPrice(Number(e.target.value))}
           className="filter-range"
         />
-        <div className="filter-range-ends"><span>$50</span><span>$1,000</span></div>
+        <div className="filter-range-ends">
+          <span>$50</span>
+          <span>$1,000</span>
+        </div>
       </div>
 
-      {/* Rating selector */}
+      {/* Rating buttons */}
       <div className="filter-section">
         <label className="filter-section-label">Minimum rating</label>
         <div className="filter-stars">
@@ -81,14 +94,21 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
               key={r}
               className={"filter-star-btn" + (minRating === r ? " active" : "")}
               onClick={() => setMinRating(r)}
+              style={r > 0 ? { display: "flex", gap: "2px", letterSpacing: "1px" } : {}}
             >
-              {r === 0 ? "Any" : `${r}★+`}
+              {r === 0 ? "Any" : (
+                <>
+                  {Array.from({ length: r }).map((_, i) => <span key={`f-${i}`} style={{ color: "var(--c-star)" }}>★</span>)}
+                  {Array.from({ length: 5 - r }).map((_, i) => <span key={`e-${i}`} style={{ color: "var(--c-border)" }}>★</span>)}
+                  <span style={{ marginLeft: "4px" }}>&amp; up</span>
+                </>
+              )}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Amenity checkboxes */}
+      {/* Amenity checkboxes — only shown after a search returns amenity data */}
       {allAmenities.length > 0 && (
         <div className="filter-section">
           <label className="filter-section-label">Amenities</label>

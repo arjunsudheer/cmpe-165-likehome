@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import CancellationConfirmDialog from "./CancellationConfirmDialog";
+import type { CancellationPreview } from "./CancellationConfirmDialog";
 import "./MyBookingsPage.css";
 
 interface BookingRow {
@@ -32,6 +34,11 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [cancelPreview, setCancelPreview] = useState<CancellationPreview | null>(null);
+  const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false);
+  const [cancelPreviewError, setCancelPreviewError] = useState("");
+  const [cancelPolicyBlocked, setCancelPolicyBlocked] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
@@ -49,18 +56,69 @@ export default function MyBookingsPage() {
         setError(err instanceof Error ? err.message : "Network error.");
       })
       .finally(() => setLoading(false));
-  }, [auth.isAuthenticated, navigate]);
+  }, [auth, navigate]);
 
-  const handleCancel = async (id: number) => {
-    if (!confirm("Cancel this booking?")) return;
+  const handleCancelClick = (id: number) => {
+    setCancelPreview(null);
+    setCancelPreviewError("");
+    setCancelPolicyBlocked(null);
+    setConfirmCancelId(id);
+  };
+
+  useEffect(() => {
+    if (confirmCancelId === null) return;
+    setCancelPreviewLoading(true);
+    setCancelPreviewError("");
+
+    fetch(`/reservations/${confirmCancelId}/cancellation-preview`, {
+      headers: auth.authHeader(),
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (r.ok) {
+          setCancelPolicyBlocked(null);
+          setCancelPreview(d.cancellation ?? null);
+          return;
+        }
+        if (d.cancellation) {
+          setCancelPreview(d.cancellation);
+          setCancelPolicyBlocked(d.error || "This booking cannot be cancelled online.");
+          return;
+        }
+        throw new Error(d.error || "Failed to load cancellation details.");
+      })
+      .catch((err) => {
+        setCancelPreview(null);
+        setCancelPolicyBlocked(null);
+        setCancelPreviewError(
+          err instanceof Error ? err.message : "Failed to load cancellation details.",
+        );
+      })
+      .finally(() => setCancelPreviewLoading(false));
+  }, [auth, confirmCancelId]);
+
+  const confirmCancel = async () => {
+    if (confirmCancelId === null) return;
+    const id = confirmCancelId;
     setCancelling(id);
+    setCancelPreviewError("");
     try {
-      const r = await fetch(`/reservations/${id}`, { method: "DELETE", headers: auth.authHeader() });
+      const r = await fetch(`/reservations/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...auth.authHeader() },
+        body: JSON.stringify({ confirmed: true }),
+      });
       const d = await r.json();
-      if (!r.ok) { setError(d.error || "Cancel failed."); return; }
+      if (!r.ok) {
+        setCancelPreviewError(d.error || "Cancel failed.");
+        return;
+      }
       setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: "CANCELLED" } : b));
+      setConfirmCancelId(null);
+      setCancelPreview(null);
+      setCancelPolicyBlocked(null);
     } catch {
-      setError("Network error.");
+      setCancelPreviewError("Network error.");
     } finally {
       setCancelling(null);
     }
@@ -68,6 +126,7 @@ export default function MyBookingsPage() {
 
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED" || b.status === "INPROGRESS");
   const past = bookings.filter((b) => b.status === "COMPLETED" || b.status === "CANCELLED");
+  const bookingToCancel = bookings.find((b) => b.id === confirmCancelId) ?? null;
 
   return (
     <div className="my-bookings-page">
@@ -92,18 +151,42 @@ export default function MyBookingsPage() {
             {upcoming.length > 0 && (
               <section className="bookings-group">
                 <h2 className="group-label">Upcoming</h2>
-                {upcoming.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancel} cancelling={cancelling === b.id} />)}
+                {upcoming.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancelClick} cancelling={cancelling === b.id} />)}
               </section>
             )}
             {past.length > 0 && (
               <section className="bookings-group">
                 <h2 className="group-label">Past</h2>
-                {past.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancel} cancelling={cancelling === b.id} />)}
+                {past.map((b) => <BookingCard key={b.id} b={b} onCancel={handleCancelClick} cancelling={cancelling === b.id} />)}
               </section>
             )}
           </>
         )}
       </div>
+
+      <CancellationConfirmDialog
+        key={
+          confirmCancelId !== null
+            ? `${confirmCancelId}-${cancelPreview?.booking_id ?? "pending"}`
+            : "closed"
+        }
+        open={confirmCancelId !== null}
+        onClose={() => {
+          if (cancelling !== null) return;
+          setConfirmCancelId(null);
+          setCancelPreview(null);
+          setCancelPreviewError("");
+          setCancelPolicyBlocked(null);
+        }}
+        preview={cancelPreview}
+        loading={cancelPreviewLoading}
+        loadError={cancelPreviewError}
+        policyBlockedMessage={cancelPolicyBlocked}
+        hotelName={bookingToCancel?.hotel_name ?? null}
+        tripTitle={bookingToCancel?.title ?? null}
+        onConfirm={confirmCancel}
+        confirming={cancelling === confirmCancelId}
+      />
     </div>
   );
 }
@@ -111,6 +194,7 @@ export default function MyBookingsPage() {
 function BookingCard({ b, onCancel, cancelling }: { b: BookingRow; onCancel: (id: number) => void; cancelling: boolean }) {
   const n = nights(b.start_date, b.end_date);
   const canCancel = b.status === "CONFIRMED" || b.status === "INPROGRESS";
+  const canReschedule = b.status !== "CANCELLED";
 
   return (
     <div className={`booking-card card${b.status === "CANCELLED" ? " booking-card-cancelled" : ""}`}>
@@ -143,11 +227,24 @@ function BookingCard({ b, onCancel, cancelling }: { b: BookingRow; onCancel: (id
 
       <div className="booking-card-footer">
         <span className="booking-ref">{b.booking_number}</span>
-        {canCancel && (
-          <button className="btn btn-secondary booking-cancel-btn" onClick={() => onCancel(b.id)} disabled={cancelling}>
-            {cancelling ? "Cancelling…" : "Cancel"}
-          </button>
-        )}
+        <div className="booking-actions-row">
+          {canReschedule && (
+            b.hotel_id ? (
+              <Link className="btn btn-secondary booking-reschedule-btn" to={`/booking/${b.hotel_id}?rescheduleBookingId=${b.id}`}>
+                Reschedule
+              </Link>
+            ) : (
+              <button className="btn btn-secondary booking-reschedule-btn" disabled>
+                Reschedule
+              </button>
+            )
+          )}
+          {canCancel && (
+            <button className="btn btn-secondary booking-cancel-btn" onClick={() => onCancel(b.id)} disabled={cancelling}>
+              {cancelling ? "Cancelling…" : "Cancel"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

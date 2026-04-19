@@ -1,10 +1,12 @@
+import os
+
 from backend import create_app
 from backend.scheduler import start_scheduler
 
 app = create_app()
-
-# Start the background job that cancels expired INPROGRESS bookings every 5 min
 start_scheduler()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 0.0.0.0 is required in Docker; falls back fine for local dev too
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes", "on"}
+    app.run(host="0.0.0.0", port=5001, debug=debug)

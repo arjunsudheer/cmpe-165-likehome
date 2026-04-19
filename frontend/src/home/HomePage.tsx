@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
-import SearchHero from "./SearchHero";
+import { useEffect, useRef, useState } from "react";
+import SearchHero, { type SearchHeroHandle, type SearchValues } from "./SearchHero";
 import HotelFilter from "./HotelFilter";
 import type { Hotel } from "./Hotel";
 import { CARD_GRADIENTS } from "../constants";
 import "./HomePage.css";
+
+type SortField = "name" | "price" | "rating";
+type SortOrder = "asc" | "desc";
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -15,11 +18,10 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
+
 function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
-
   return (
-    // Opens hotel details in a new tab per spec
     <a
       href={`/hotel/${hotel.id}`}
       target="_blank"
@@ -61,7 +63,9 @@ function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
         )}
 
         <div className="hotel-card-footer">
-          <span className="review-count">{hotel.review_count} review{hotel.review_count !== 1 ? "s" : ""}</span>
+          <span className="review-count">
+            {hotel.review_count} review{hotel.review_count !== 1 ? "s" : ""}
+          </span>
           <span className="view-link">View details →</span>
         </div>
       </div>
@@ -69,39 +73,138 @@ function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   );
 }
 
+// ── Sorting helpers ────────────────────────────────────────────────────────────
+
+const SORT_LABELS: Record<SortField, string> = {
+  name: "Name",
+  price: "Price",
+  rating: "Rating",
+};
+
+function sortHotels(hotels: Hotel[], field: SortField, order: SortOrder): Hotel[] {
+  return [...hotels].sort((a, b) => {
+    let cmp = 0;
+    if (field === "name") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (field === "price") {
+      cmp = a.price_per_night - b.price_per_night;
+    } else if (field === "rating") {
+      cmp = a.rating - b.rating;
+    }
+    return order === "asc" ? cmp : -cmp;
+  });
+}
+
+// ── SortBar component ──────────────────────────────────────────────────────────
+
+function SortBar({
+  field,
+  order,
+  onChange,
+}: {
+  field: SortField;
+  order: SortOrder;
+  onChange: (field: SortField, order: SortOrder) => void;
+}) {
+  const handleFieldClick = (f: SortField) => {
+    if (f === field) {
+      // Same field → toggle direction
+      onChange(f, order === "asc" ? "desc" : "asc");
+    } else {
+      // New field → default to ascending (descending for rating feels more natural)
+      onChange(f, f === "rating" ? "desc" : "asc");
+    }
+  };
+
+  return (
+    <div className="sort-bar">
+      <span className="sort-label">Sort by:</span>
+      {(Object.keys(SORT_LABELS) as SortField[]).map((f) => {
+        const active = f === field;
+        return (
+          <button
+            key={f}
+            className={`sort-btn${active ? " sort-btn--active" : ""}`}
+            onClick={() => handleFieldClick(f)}
+            aria-pressed={active}
+          >
+            {SORT_LABELS[f]}
+            {active && (
+              <span className="sort-arrow" aria-hidden="true">
+                {order === "asc" ? " ↑" : " ↓"}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── HomePage ───────────────────────────────────────────────────────────────────
+
 export default function HomePage() {
+  const heroRef = useRef<SearchHeroHandle>(null);
+
   const [allHotels, setAllHotels] = useState<Hotel[]>([]);
+  const [filtered, setFiltered] = useState<Hotel[]>([]);
   const [displayed, setDisplayed] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Load all hotels on mount — default view
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>("rating");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  // Re-sort whenever the filtered list or sort settings change
+  useEffect(() => {
+    setDisplayed(sortHotels(filtered, sortField, sortOrder));
+  }, [filtered, sortField, sortOrder]);
+
+  const handleSortChange = (field: SortField, order: SortOrder) => {
+    setSortField(field);
+    setSortOrder(order);
+  };
+
+  // Load all hotels on mount
   useEffect(() => {
     fetch("/hotels/")
       .then((r) => r.json())
       .then((data) => {
         const hotels: Hotel[] = data.results ?? [];
         setAllHotels(hotels);
-        setDisplayed(hotels);
+        setFiltered(hotels);
       })
       .catch(() => setError("Failed to load hotels."))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSearch = async (destination: string, checkIn: string, checkOut: string) => {
+  const handleSearch = async ({ destination, checkIn, checkOut, guests }: SearchValues) => {
     setSearching(true);
     setError("");
     try {
-      const params = new URLSearchParams({ destination, check_in: checkIn, check_out: checkOut });
+      const params = new URLSearchParams({
+        destination,
+        check_in: checkIn,
+        check_out: checkOut,
+      });
       const res = await fetch(`/hotels/search?${params}`);
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Search failed."); return; }
+
       const hotels: Hotel[] = data.results ?? [];
       setAllHotels(hotels);
-      setDisplayed(hotels);
+      setFiltered(hotels);
       setResultCount(hotels.length);
+      setHasSearched(true);
+
+      sessionStorage.setItem(
+        "lh_search",
+        JSON.stringify({ checkIn, checkOut, guests })
+      );
     } catch {
       setError("Network error — please try again.");
     } finally {
@@ -109,24 +212,61 @@ export default function HomePage() {
     }
   };
 
+  const handleClear = () => {
+    heroRef.current?.clear();
+    setResultCount(null);
+    setHasSearched(false);
+    setError("");
+    sessionStorage.removeItem("lh_search");
+
+    setLoading(true);
+    fetch("/hotels/")
+      .then((r) => r.json())
+      .then((data) => {
+        const hotels: Hotel[] = data.results ?? [];
+        setAllHotels(hotels);
+        setFiltered(hotels);
+      })
+      .catch(() => setError("Failed to load hotels."))
+      .finally(() => setLoading(false));
+  };
+
   return (
     <div className="home-page">
-      <SearchHero onSearch={handleSearch} isLoading={searching} resultCount={resultCount} />
+      <SearchHero
+        ref={heroRef}
+        onSearch={handleSearch}
+        isLoading={searching}
+        resultCount={resultCount}
+      />
 
       <div className="home-body">
-        <HotelFilter hotels={allHotels} onFilter={setDisplayed} />
+        <HotelFilter hotels={allHotels} onFilter={setFiltered} />
 
         <section className="hotel-grid-section">
           <div className="hotel-grid-header">
             <h2>
-              {resultCount !== null
+              {hasSearched
                 ? `${displayed.length} hotel${displayed.length !== 1 ? "s" : ""} found`
                 : "Popular stays"}
             </h2>
-            {resultCount !== null && displayed.length !== allHotels.length && (
-              <span className="filter-count">{displayed.length} of {allHotels.length} shown</span>
-            )}
+
+            <div className="hotel-grid-header-actions">
+              {hasSearched && displayed.length !== allHotels.length && (
+                <span className="filter-count">
+                  {displayed.length} of {allHotels.length} shown
+                </span>
+              )}
+              {hasSearched && (
+                <button className="clear-search-btn" onClick={handleClear}>
+                  ✕ Clear search &amp; filters
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Sort bar sits just above the grid */}
+          <SortBar field={sortField} order={sortOrder} onChange={handleSortChange} />
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -139,6 +279,11 @@ export default function HomePage() {
           ) : displayed.length === 0 ? (
             <div className="empty-state">
               <p>No hotels match your filters.</p>
+              {hasSearched && (
+                <button className="btn btn-secondary" onClick={handleClear} style={{ marginTop: 16 }}>
+                  Clear search
+                </button>
+              )}
             </div>
           ) : (
             <div className="hotel-grid">

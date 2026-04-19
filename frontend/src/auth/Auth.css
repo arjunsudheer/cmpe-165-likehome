@@ -4,43 +4,70 @@
   min-height: calc(100vh - var(--navbar-h));
 }
 
-/* Left gradient brand panel */
+/* Left brand panel — night sky */
 .auth-brand {
   width: 44%;
   flex-shrink: 0;
-  background: linear-gradient(145deg, #4f46e5 0%, #7c3aed 50%, #0ea5e9 100%);
+  background: linear-gradient(145deg, #0a1e3d 0%, #0e2d5a 40%, #112a52 70%, #07182e 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 64px 56px;
   color: white;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+
+[data-theme="light"] .auth-brand {
+  background: linear-gradient(145deg, #38bdf8 0%, #0284c7 40%, #0369a1 70%, #0c4a6e 100%);
+}
+
+/* Starfield on brand panel */
+.auth-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 15%, rgba(245,166,35,.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 25%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 85% 70%, rgba(48,201,212,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 40%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(2px 2px at 90% 10%, rgba(245,166,35,.5) 0%, transparent 100%);
+  animation: twinkle 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.auth-brand-content { position: relative; z-index: 1; }
+
+.auth-brand-logo {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.5px;
+  margin-bottom: 32px;
 }
 
 .auth-brand h1 {
-  font-size: 48px;
-  font-weight: 800;
-  letter-spacing: -1.5px;
-  margin-bottom: 16px;
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+  line-height: 1.15;
 }
 
-.auth-brand p {
-  font-size: 17px;
-  opacity: .9;
-  line-height: 1.6;
-  margin-bottom: 40px;
-}
+.auth-brand p { font-size: 16px; opacity: .8; line-height: 1.7; margin-bottom: 40px; }
 
-.auth-perks {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
+.auth-perks { list-style: none; display: flex; flex-direction: column; gap: 14px; }
 .auth-perks li {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  opacity: .9;
+  opacity: .85;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Right form panel */
@@ -50,46 +77,50 @@
   flex-direction: column;
   justify-content: center;
   padding: 64px 72px;
-  background: white;
+  background: var(--c-surface);
   max-width: 560px;
 }
 
 .auth-card h2 {
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 30px;
+  font-weight: 900;
   color: var(--c-text);
   margin-bottom: 6px;
   letter-spacing: -.5px;
 }
 
-.auth-sub {
-  font-size: 14px;
-  color: var(--c-text-muted);
-  margin-bottom: 28px;
-}
-
-.auth-sub a {
-  color: var(--c-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-
+.auth-sub { font-size: 14px; color: var(--c-text-muted); margin-bottom: 24px; }
+.auth-sub a { color: var(--c-primary); font-weight: 700; text-decoration: none; }
 .auth-sub a:hover { text-decoration: underline; }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Full-width submit button */
+.auth-form { display: flex; flex-direction: column; gap: 20px; }
 .auth-submit { width: 100%; margin-top: 4px; }
 
-.auth-form .alert { margin-bottom: 4px; }
+/* Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  color: var(--c-text-light);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
+.google-btn-wrapper { display: flex; justify-content: center; }
 
 @media (max-width: 800px) {
   .auth-page { flex-direction: column; }
   .auth-brand { width: 100%; padding: 40px 28px; }
-  .auth-brand h1 { font-size: 32px; }
+  .auth-brand h1 { font-size: 28px; }
   .auth-card { padding: 40px 28px; max-width: 100%; }
 }

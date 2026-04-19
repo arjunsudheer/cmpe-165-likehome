@@ -80,7 +80,7 @@ def redeem_points():
         discount = Decimal(points) / Decimal(100)
         booking.total_price = max(Decimal("0.00"), booking.total_price - discount)
         user.points -= points
-        db.add(PointsTransaction(user_id=user_id, booking_id=booking_id, points=-points))
+        db.add(PointsTransaction(user_id=user_id, booking_id=booking_id, points=-points, log=f"Redeemed {points} points on booking #{booking_id}"))
         db.commit()
 
         return jsonify({

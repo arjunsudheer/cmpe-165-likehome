@@ -3,4 +3,11 @@
 venv/
 __pycache__/
 .DS_Store
+.cursor/
+frontend/.env.development
+frontend/.vite/
 
+.cursor/worktrees.json
+frontend/.env.development
+frontend/.vite/deps/_metadata.json
+frontend/.vite/deps/package.json

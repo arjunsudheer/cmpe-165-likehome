@@ -1,10 +1,33 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
 import "./Navbar.css";
+
+function applyTheme(theme: "dark" | "light") {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("lh_theme", theme);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function initTheme() {
+  const saved = localStorage.getItem("lh_theme") as "dark" | "light" | null;
+  applyTheme(saved ?? "dark");
+}
 
 export default function Navbar() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("lh_theme") as "dark" | "light") ?? "dark";
+  });
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
+  };
 
   const handleLogout = () => {
     auth.logout();
@@ -19,7 +42,6 @@ export default function Navbar() {
         </NavLink>
 
         <nav className="navbar-links">
-          {/* Page navigation links */}
           <NavLink
             to="/"
             end
@@ -49,12 +71,8 @@ export default function Navbar() {
                 Settings
               </NavLink>
 
-              {/* Vertical divider clearly separates page links from account area */}
               <span className="nav-divider" aria-hidden="true" />
-
-              {/* Plain text — not a link, not a button */}
               <span className="nav-name">{auth.name || auth.email}</span>
-
               <button className="nav-logout-btn" onClick={handleLogout}>
                 Logout
               </button>
@@ -69,6 +87,16 @@ export default function Navbar() {
               Login
             </NavLink>
           )}
+
+          {/* Theme toggle */}
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
         </nav>
       </div>
     </header>
