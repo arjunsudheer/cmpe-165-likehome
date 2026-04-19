@@ -1,0 +1,68 @@
+.settings-page { min-height: calc(100vh - var(--navbar-h)); background: var(--c-bg); padding: 40px 20px 80px; }
+.settings-container { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.settings-page-title { font-size: 30px; font-weight: 800; }
+
+.settings-card { padding: 24px 28px; }
+
+.settings-section-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+
+.settings-shimmer {
+  height: 52px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s infinite;
+}
+
+@keyframes skeleton-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Setting row */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-row-info { display: flex; flex-direction: column; gap: 4px; }
+
+.settings-row-label { font-size: 15px; font-weight: 600; color: var(--c-text); }
+
+.settings-row-desc { font-size: 13px; color: var(--c-text-muted); }
+
+/* Toggle switch */
+.toggle-btn {
+  flex-shrink: 0;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  background: var(--c-border, #cbd5e1);
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.toggle-btn--on { background: #4f46e5; }
+
+.toggle-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  transition: transform 0.2s;
+  display: block;
+}
+
+.toggle-btn--on .toggle-knob { transform: translateX(20px); }

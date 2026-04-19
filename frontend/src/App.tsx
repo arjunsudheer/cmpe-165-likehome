@@ -10,6 +10,7 @@ import Booking from "./reservation/Booking";
 import CheckoutPage from "./payment/CheckoutPage";
 import RewardsPage from "./rewards/RewardsPage";
 import MyBookingsPage from "./mybooking/MyBookingsPage";
+import SettingsPage from "./settings/SettingsPage";
 import "./index.css";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/rewards" element={<RewardsPage />} />
             <Route path="/my-bookings" element={<MyBookingsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
         <Footer />
