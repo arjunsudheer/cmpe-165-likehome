@@ -1,19 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "./savedSearches";
 import "./SettingsPage.css";
 
 const NOTIF_KEY = "lh_notifications_enabled";
-export const SAVED_SEARCHES_KEY = "lh_saved_searches";
-
-export interface SavedSearch {
-  id: string;
-  destination: string;
-  checkIn: string;
-  checkOut: string;
-  guests: number;
-  savedAt: string;
-}
 
 function readNotifPref(): boolean {
   try {
@@ -21,15 +12,6 @@ function readNotifPref(): boolean {
     return raw === null ? true : raw === "true";
   } catch {
     return true;
-  }
-}
-
-export function readSavedSearches(): SavedSearch[] {
-  try {
-    const raw = localStorage.getItem(SAVED_SEARCHES_KEY);
-    return raw ? (JSON.parse(raw) as SavedSearch[]) : [];
-  } catch {
-    return [];
   }
 }
 

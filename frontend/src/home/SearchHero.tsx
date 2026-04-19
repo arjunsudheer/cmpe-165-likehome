@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
-import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "../settings/SettingsPage";
+import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "../settings/savedSearches";
 import "./SearchHero.css";
 
 export interface SearchValues {
