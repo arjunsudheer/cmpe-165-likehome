@@ -1,11 +1,11 @@
 from flask import current_app, jsonify, request
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from backend.auth import auth_bp
 from backend.auth.forms import validate_login, validate_registration
 from backend.db.db_connection import session
-from backend.db.models import User
+from backend.db.models import User, Notification
 from backend.extensions import bcrypt
 
 
@@ -17,6 +17,7 @@ def _token_response(user):
         "user_id": user.id,
         "email": user.email,
         "name": user.name,
+        "send_reminder_email": user.send_reminder_email,
     }
 
 
@@ -111,3 +112,71 @@ def google_login():
         session.commit()
 
     return jsonify(_token_response(user)), 200
+
+@auth_bp.route("/settings", methods=["GET"])
+@jwt_required()
+def get_settings():
+    user_id = get_jwt_identity()
+    user = session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({
+        "send_reminder_email": user.send_reminder_email
+    }), 200
+
+@auth_bp.route("/settings", methods=["PUT"])
+@jwt_required()
+def update_settings():
+    user_id = get_jwt_identity()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    user = session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if "send_reminder_email" in data:
+        user.send_reminder_email = bool(data["send_reminder_email"])
+        session.commit()
+
+    return jsonify({
+        "send_reminder_email": user.send_reminder_email
+    }), 200
+
+
+@auth_bp.route("/notifications", methods=["GET"])
+@jwt_required()
+def get_notifications():
+    user_id = get_jwt_identity()
+    notifications = session.query(Notification).filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+    
+    return jsonify([{
+        "id": n.id,
+        "message": n.message,
+        "is_read": n.is_read,
+        "created_at": n.created_at.isoformat()
+    } for n in notifications]), 200
+
+@auth_bp.route("/notifications/<int:notification_id>/mark-read", methods=["POST"])
+@jwt_required()
+def mark_notification_read(notification_id):
+    user_id = get_jwt_identity()
+    notification = session.query(Notification).filter_by(id=notification_id, user_id=user_id).first()
+    
+    if not notification:
+        return jsonify({"error": "Notification not found"}), 404
+        
+    notification.is_read = True
+    session.commit()
+    
+    return jsonify({"success": True}), 200
+
+@auth_bp.route("/notifications/mark-all-read", methods=["POST"])
+@jwt_required()
+def mark_all_notifications_read():
+    user_id = get_jwt_identity()
+    session.query(Notification).filter_by(user_id=user_id, is_read=False).update({"is_read": True})
+    session.commit()
+    
+    return jsonify({"success": True}), 200

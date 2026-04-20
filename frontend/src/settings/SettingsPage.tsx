@@ -4,17 +4,6 @@ import { useAuth } from "../context/AuthContext";
 import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "./savedSearches";
 import "./SettingsPage.css";
 
-const NOTIF_KEY = "lh_notifications_enabled";
-
-function readNotifPref(): boolean {
-  try {
-    const raw = localStorage.getItem(NOTIF_KEY);
-    return raw === null ? true : raw === "true";
-  } catch {
-    return true;
-  }
-}
-
 function deleteSavedSearch(id: string): SavedSearch[] {
   const updated = readSavedSearches().filter((s) => s.id !== id);
   try { localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
@@ -25,7 +14,7 @@ export default function SettingsPage() {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(readNotifPref);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(readSavedSearches);
 
   useEffect(() => {
@@ -33,14 +22,46 @@ export default function SettingsPage() {
       navigate("/login");
       return;
     }
-  }, [auth.isAuthenticated, navigate]);
+    
+    // Fetch settings
+    fetch("/auth/settings", {
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.send_reminder_email !== undefined) {
+          setNotificationsEnabled(data.send_reminder_email);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch settings", err));
+  }, [auth.isAuthenticated, auth.token, navigate]);
 
   if (!auth.isAuthenticated) return null;
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     const newValue = !notificationsEnabled;
-    try { localStorage.setItem(NOTIF_KEY, String(newValue)); } catch { /* ignore */ }
+    // Optimistic update
     setNotificationsEnabled(newValue);
+    
+    try {
+      const res = await fetch("/auth/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify({ send_reminder_email: newValue }),
+      });
+      if (!res.ok) {
+        // Revert on failure
+        setNotificationsEnabled(!newValue);
+      }
+    } catch (error) {
+      console.error("Failed to update settings", error);
+      setNotificationsEnabled(!newValue);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -57,16 +78,16 @@ export default function SettingsPage() {
           <h2 className="settings-section-title">Notifications</h2>
           <div className="settings-row">
             <div className="settings-row-info">
-              <span className="settings-row-label">Email notifications</span>
+              <span className="settings-row-label">Booking Reminders</span>
               <span className="settings-row-desc">
-                Receive booking confirmations, updates, and reminders by email.
+                Receive reminders about your upcoming bookings via in-app notifications.
               </span>
             </div>
             <button
               className={`toggle-btn${notificationsEnabled ? " toggle-btn--on" : ""}`}
               onClick={handleToggle}
               aria-pressed={notificationsEnabled}
-              aria-label="Toggle email notifications"
+              aria-label="Toggle booking reminders"
             >
               <span className="toggle-knob" />
             </button>
