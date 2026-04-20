@@ -17,13 +17,19 @@ from backend.db.mock_hotels import (
     mock_review_users,
     mock_reviews,
 )
-from backend.db.schema_patches import ensure_points_transactions_log_column
+from backend.db.schema_patches import (
+    ensure_points_transactions_log_column,
+    ensure_reminder_email_columns,
+    ensure_notifications_table,
+)
 from backend.search.routes import refresh_hotel_rating
 
 
 def init_tables_and_data():
     Base.metadata.create_all(engine, checkfirst=True)
     ensure_points_transactions_log_column()
+    ensure_reminder_email_columns()
+    ensure_notifications_table()
     with engine.begin() as conn:
         hotel = conn.execute(select(Hotel)).first()
         if hotel is None:
