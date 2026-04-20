@@ -180,4 +180,3 @@ def mark_all_notifications_read():
     session.commit()
     
     return jsonify({"success": True}), 200
-

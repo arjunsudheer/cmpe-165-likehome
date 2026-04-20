@@ -110,8 +110,8 @@ def create_booking_reminders():
                 .where(
                     Booking.start_date == tomorrow,
                     Booking.status == Status.CONFIRMED,
-                    Booking.reminder_notification_created == False,
-                    User.send_reminder_email == True
+                    Booking.reminder_notification_created.is_(False),
+                    User.send_reminder_email.is_(True)
                 )
             ).all()
 
@@ -141,6 +141,6 @@ def create_booking_reminders():
                     print(f"Error creating notification for {user.email}: {e}")
                     
             session.commit()
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             session.rollback()
             raise RuntimeError(f"Failed to create booking reminders: {e}") from e

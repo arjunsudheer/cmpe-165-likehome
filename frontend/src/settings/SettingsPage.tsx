@@ -15,7 +15,6 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(readSavedSearches);
 
   useEffect(() => {
@@ -36,8 +35,7 @@ export default function SettingsPage() {
           setNotificationsEnabled(data.send_reminder_email);
         }
       })
-      .catch((err) => console.error("Failed to fetch settings", err))
-      .finally(() => setLoadingNotifications(false));
+      .catch((err) => console.error("Failed to fetch settings", err));
   }, [auth.isAuthenticated, auth.token, navigate]);
 
   if (!auth.isAuthenticated) return null;

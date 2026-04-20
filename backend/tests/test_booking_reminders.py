@@ -75,7 +75,7 @@ def test_send_booking_reminders(client, session):
     # Check if reminder was marked as created
     session.expire_all()
     b = session.get(Booking, booking_id)
-    assert b.reminder_notification_created == True
+    assert b.reminder_notification_created is True
     
     # Check if Notification was created
     notifications = session.query(Notification).filter_by(user_id=user_id).all()
@@ -113,7 +113,7 @@ def test_no_reminder_if_disabled(client, session):
 
     session.expire_all()
     b = session.get(Booking, booking_id)
-    assert b.reminder_notification_created == False
+    assert b.reminder_notification_created is False
     
     notifications = session.query(Notification).filter_by(user_id=user_id).all()
     assert len(notifications) == 0
@@ -150,7 +150,7 @@ def test_no_reminder_if_not_tomorrow(client, session):
 
     session.expire_all()
     b = session.get(Booking, booking_id)
-    assert b.reminder_notification_created == False
+    assert b.reminder_notification_created is False
     
     notifications = session.query(Notification).filter_by(user_id=user_id).all()
     assert len(notifications) == 0

@@ -1,5 +1,5 @@
 import smtplib
-from email.message import EmailMessage
+from email.message import EmailMessage # pylint: disable=no-name-in-module
 
 SMTP_HOST = "localhost"
 SMTP_PORT = 1025 # Common testing port for python -m smtpd -n -c DebuggingServer localhost:1025
@@ -23,5 +23,5 @@ def send_email(to_email: str, subject: str, body: str):
     except ConnectionRefusedError:
         print(f"[Email Not Sent] Connection refused to {SMTP_HOST}:{SMTP_PORT}. "
               f"Could not send email to {to_email} with subject '{subject}'.")
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         print(f"Failed to send email to {to_email}: {e}")
