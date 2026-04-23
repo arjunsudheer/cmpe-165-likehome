@@ -67,8 +67,24 @@
   color: var(--c-primary);
 }
 .hdp-price-label { font-size: 16px; color: var(--c-text-muted); }
-.hdp-reserve-btn { width: 100%; font-size: 16px; padding: 14px 28px; }
+.hdp-reserve-row { display: flex; gap: 10px; align-items: stretch; }
+.hdp-reserve-btn { flex: 1; font-size: 16px; padding: 14px 28px; }
 .hdp-login-hint { font-size: 12px; color: var(--c-text-light); margin-top: 8px; }
+
+.hdp-fav-btn {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 14px;
+  cursor: pointer;
+  color: var(--c-text-muted);
+  transition: color .18s, border-color .18s, transform .12s;
+}
+.hdp-fav-btn:hover { color: var(--c-danger); border-color: var(--c-danger); transform: scale(1.08); }
+.hdp-fav-btn--active { color: var(--c-danger); border-color: var(--c-danger); }
+.hdp-fav-btn:disabled { opacity: .6; cursor: default; transform: none; }
 
 /* Two-column info grid */
 .hdp-grid {
