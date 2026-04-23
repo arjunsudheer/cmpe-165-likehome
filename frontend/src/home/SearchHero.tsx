@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
+import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "../settings/savedSearches";
 import "./SearchHero.css";
 
 export interface SearchValues {
@@ -43,6 +44,20 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
       if (canSearch) {
         onSearch({ destination: destination.trim(), checkIn, checkOut, guests });
       }
+    };
+
+    const handleSaveSearch = () => {
+      if (!canSearch) return;
+      const newEntry: SavedSearch = {
+        id: crypto.randomUUID(),
+        destination: destination.trim(),
+        checkIn,
+        checkOut,
+        guests,
+        savedAt: new Date().toISOString(),
+      };
+      const updated = [newEntry, ...readSavedSearches()];
+      try { localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
     };
 
     return (
@@ -109,6 +124,15 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
               disabled={!canSearch || isLoading}
             >
               {isLoading ? "Searching…" : "Search"}
+            </button>
+            <button
+              type="button"
+              className="search-save"
+              disabled={!canSearch}
+              onClick={handleSaveSearch}
+              title="Save this search"
+            >
+              Save
             </button>
           </form>
 

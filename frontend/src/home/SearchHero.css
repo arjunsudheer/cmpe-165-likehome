@@ -145,6 +145,22 @@
 }
 .search-submit:disabled { opacity: .5; cursor: not-allowed; }
 
+.search-save {
+  flex-shrink: 0;
+  padding: 0 20px;
+  background: transparent;
+  color: var(--c-primary);
+  border: 2px solid var(--c-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+  white-space: nowrap;
+}
+.search-save:hover:not(:disabled) { background: var(--c-primary); color: #0d1f3c; }
+.search-save:disabled { opacity: .4; cursor: not-allowed; }
+
 .search-result-count {
   margin-top: 18px;
   color: rgba(255,255,255,.8);

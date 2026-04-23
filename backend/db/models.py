@@ -35,6 +35,7 @@ class User(Base):
     email = Column(String(100), CheckConstraint("email = lower(email)"), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     points = Column(Integer, nullable=False, default=0)
+    send_reminder_email = Column(Boolean, default=True)
 
 
 class Hotel(Base):
@@ -94,8 +95,17 @@ class Booking(Base):
     status = Column(Enum(Status, native_enum=False), default=Status.CONFIRMED)
     created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=True)
+    reminder_email_sent = Column(Boolean, default=False)
+    reminder_notification_created = Column(Boolean, default=False)
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message = Column(String(255), nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True)
