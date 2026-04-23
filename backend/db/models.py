@@ -2,7 +2,7 @@ import enum
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime,
-    Enum, ForeignKey, Integer, Numeric, String, func,
+    Enum, ForeignKey, Integer, Numeric, String, UniqueConstraint, func,
 )
 from backend.db.db_connection import Base
 
@@ -133,3 +133,11 @@ class Coupon(Base):
     value_in_points = Column(Integer, nullable=False)
     status = Column(Enum(CouponStatus, native_enum=False), default=CouponStatus.REDEEMABLE)
     expires_at = Column(DateTime)
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (UniqueConstraint("user_id", "hotel_id"),)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
