@@ -5,6 +5,7 @@ from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, select, func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.db_connection import engine
 from backend.db.models import (
@@ -17,9 +18,33 @@ from backend.reservation.utils import (
     check_room_availability,
     get_cancellation_details,
     generate_booking_number,
+    send_cancellation_email,
 )
 
 POINTS_PER_DOLLAR = 10
+
+def _reschedule_conflicts(db, room_id, booking_id, start_date, end_date):
+    return [
+        c for c in check_room_availability(db, room_id, start_date, end_date)
+        if c.id != booking_id
+    ]
+
+
+def _pricing_summary(price_difference):
+    if price_difference < 0:
+        return {
+            "adjustment_type": "refund",
+            "amount": str(abs(price_difference)),
+        }
+    if price_difference > 0:
+        return {
+            "adjustment_type": "charge",
+            "amount": str(price_difference),
+        }
+    return {
+        "adjustment_type": "none",
+        "amount": "0.00",
+    }
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
@@ -28,11 +53,16 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "booking_number": booking.booking_number,
         "status": booking.status.value,
         "policy_hours": details["policy_hours"],
+        "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
         "fee_amount": str(details["fee_amount"]),
         "refund_amount": str(details["refund_amount"]),
         "points_to_restore": int(points_to_restore),
+        "summary": {
+            "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
+            "refund_message": f'Refund amount: ${details["refund_amount"]}',
+        },
     }
 
 
@@ -305,10 +335,9 @@ def reschedule_booking(booking_id):
         if not hotel:
             return jsonify({"error": "Hotel not found"}), 404
 
-        conflicts = [
-            c for c in check_room_availability(db, room_id, start_date, end_date)
-            if c.id != booking.id
-        ]
+        conflicts = _reschedule_conflicts(
+            db, room_id, booking.id, start_date, end_date
+        )
         if conflicts:
             return jsonify({
                 "error": "Room unavailable for selected dates",
@@ -336,26 +365,7 @@ def reschedule_booking(booking_id):
 
         db.commit()
 
-        pricing_summary = {}
-        #message field unused if frontend wants to handle message formatting
-        if price_difference < 0:
-            pricing_summary = {
-                "adjustment_type": "refund",
-                "amount": str(abs(price_difference)),
-                #"message": f"You will be refunded ${abs(price_difference):.2f}",
-            }
-        elif price_difference > 0:
-            pricing_summary = {
-                "adjustment_type": "charge",
-                "amount": str(price_difference),
-                #"message": f"You will be charged an additional ${abs(price_difference):.2f}",
-            }
-        else:
-            pricing_summary = {
-                "adjustment_type": "none",
-                "amount": "0.00",
-                #"message": "No price change"
-            }
+        pricing_summary = _pricing_summary(price_difference)
 
         return jsonify({
             "message": "Booking updated",
@@ -446,7 +456,7 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -486,7 +496,7 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
-        details = get_cancellation_details(booking)
+        details = get_cancellation_details(db, booking)
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -535,11 +545,22 @@ def cancel_booking(booking_id):
         booking.status = Status.CANCELLED
         try:
             db.commit()
-        except Exception:
+        except (IntegrityError, SQLAlchemyError):
             db.rollback()
             return jsonify({
                 "error": "Cancellation failed. Please try again.",
             }), 500
+
+        user = db.get(User, user_id)
+        email_sent = False
+        if user and user.email:
+            email_sent = send_cancellation_email(
+                to_email=user.email,
+                booking_number=booking.booking_number,
+                fee_amount=details["fee_amount"],
+                refund_amount=details["refund_amount"],
+            )
+
         return jsonify({
             "message": "Booking cancelled",
             "booking_number": booking.booking_number,
@@ -549,4 +570,5 @@ def cancel_booking(booking_id):
                 "fee_amount": str(details["fee_amount"]),
                 "points_restored": int(redeemed_points),
             },
+            "email_sent": email_sent,
         }), 200

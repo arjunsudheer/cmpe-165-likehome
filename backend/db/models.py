@@ -72,6 +72,15 @@ class HotelAmenity(Base):
     name = Column(String(100), nullable=False)
 
 
+class CancellationPolicy(Base):
+    __tablename__ = "cancellation_policies"
+    id = Column(Integer, primary_key=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False, unique=True)
+    deadline_hours = Column(Integer, nullable=False, default=48)
+    fee_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    active = Column(Boolean, nullable=False, default=True)
+
+
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
