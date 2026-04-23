@@ -155,5 +155,5 @@ def send_cancellation_email(
                 server.login(smtp_username, smtp_password)
             server.send_message(message)
         return True
-    except Exception:
+    except (smtplib.SMTPException, OSError, TimeoutError):
         return False

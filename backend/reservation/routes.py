@@ -290,6 +290,29 @@ def get_booking(booking_id):
         }), 200
 
 
+def _validate_reschedule_input(data):
+    title = data.get("title")
+    room_id = data.get("room")
+    start_str = data.get("start_date")
+    end_str = data.get("end_date")
+
+    if not all([title, room_id, start_str, end_str]):
+        return None, jsonify({"error": "title, room, start_date, end_date required"}), 400
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return None, jsonify({"error": "Dates must be YYYY-MM-DD"}), 400
+
+    if end_date <= start_date:
+        return None, jsonify({"error": "end_date must be after start_date"}), 400
+    if start_date < date.today():
+        return None, jsonify({"error": "start_date cannot be in the past"}), 400
+
+    return (title, room_id, start_date, end_date), None, None
+
+
 @reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
 @jwt_required()
 def reschedule_booking(booking_id):
@@ -298,23 +321,11 @@ def reschedule_booking(booking_id):
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
 
-    title = data.get("title")
-    room_id = data.get("room")
-    start_str = data.get("start_date")
-    end_str = data.get("end_date")
-    if not all([title, room_id, start_str, end_str]):
-        return jsonify({"error": "title, room, start_date, end_date required"}), 400
+    parsed, error_response, error_code = _validate_reschedule_input(data)
+    if error_response:
+        return error_response, error_code
 
-    try:
-        start_date = date.fromisoformat(start_str)
-        end_date = date.fromisoformat(end_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": "Dates must be YYYY-MM-DD"}), 400
-
-    if end_date <= start_date:
-        return jsonify({"error": "end_date must be after start_date"}), 400
-    if start_date < date.today():
-        return jsonify({"error": "start_date cannot be in the past"}), 400
+    title, room_id, start_date, end_date = parsed
 
     with Session(engine) as db:
         booking = db.execute(
