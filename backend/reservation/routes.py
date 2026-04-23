@@ -5,6 +5,7 @@ from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, select, func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.db_connection import engine
 from backend.db.models import (
@@ -21,6 +22,29 @@ from backend.reservation.utils import (
 )
 
 POINTS_PER_DOLLAR = 10
+
+def _reschedule_conflicts(db, room_id, booking_id, start_date, end_date):
+    return [
+        c for c in check_room_availability(db, room_id, start_date, end_date)
+        if c.id != booking_id
+    ]
+
+
+def _pricing_summary(price_difference):
+    if price_difference < 0:
+        return {
+            "adjustment_type": "refund",
+            "amount": str(abs(price_difference)),
+        }
+    if price_difference > 0:
+        return {
+            "adjustment_type": "charge",
+            "amount": str(price_difference),
+        }
+    return {
+        "adjustment_type": "none",
+        "amount": "0.00",
+    }
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
@@ -311,10 +335,9 @@ def reschedule_booking(booking_id):
         if not hotel:
             return jsonify({"error": "Hotel not found"}), 404
 
-        conflicts = [
-            c for c in check_room_availability(db, room_id, start_date, end_date)
-            if c.id != booking.id
-        ]
+        conflicts = _reschedule_conflicts(
+            db, room_id, booking.id, start_date, end_date
+        )
         if conflicts:
             return jsonify({
                 "error": "Room unavailable for selected dates",
@@ -342,26 +365,7 @@ def reschedule_booking(booking_id):
 
         db.commit()
 
-        pricing_summary = {}
-        #message field unused if frontend wants to handle message formatting
-        if price_difference < 0:
-            pricing_summary = {
-                "adjustment_type": "refund",
-                "amount": str(abs(price_difference)),
-                #"message": f"You will be refunded ${abs(price_difference):.2f}",
-            }
-        elif price_difference > 0:
-            pricing_summary = {
-                "adjustment_type": "charge",
-                "amount": str(price_difference),
-                #"message": f"You will be charged an additional ${abs(price_difference):.2f}",
-            }
-        else:
-            pricing_summary = {
-                "adjustment_type": "none",
-                "amount": "0.00",
-                #"message": "No price change"
-            }
+        pricing_summary = _pricing_summary(price_difference)
 
         return jsonify({
             "message": "Booking updated",
@@ -541,7 +545,7 @@ def cancel_booking(booking_id):
         booking.status = Status.CANCELLED
         try:
             db.commit()
-        except Exception:
+        except (IntegrityError, SQLAlchemyError):
             db.rollback()
             return jsonify({
                 "error": "Cancellation failed. Please try again.",
