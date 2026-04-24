@@ -2,10 +2,10 @@ from datetime import date
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 
 from backend.db.db_connection import session
-from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User
+from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status
 from backend.search import search_bp
 
 
@@ -186,6 +186,19 @@ def create_review(hotel_id):
     user_id = int(get_jwt_identity())
     if not session.get(User, user_id):
         return jsonify({"error": "User not found"}), 404
+
+    stayed = session.execute(
+        select(Booking).where(
+            and_(
+                Booking.user == user_id,
+                Booking.room.in_(select(HotelRoom.id).where(HotelRoom.hotel == hotel_id)),
+                Booking.status == Status.CONFIRMED
+            )
+        )
+    ).scalar_one_or_none()
+
+    if not stayed:
+        return jsonify({"error": "You may only review hotels that you have stayed at."}), 403
 
     data = request.get_json(silent=True) or {}
     rating = data.get("rating")
