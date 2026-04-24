@@ -192,7 +192,7 @@ def create_review(hotel_id):
             and_(
                 Booking.user == user_id,
                 Booking.room.in_(select(HotelRoom.id).where(HotelRoom.hotel == hotel_id)),
-                Booking.status == Status.CONFIRMED
+                Booking.status == Status.COMPLETED
             )
         )
     ).scalar_one_or_none()
