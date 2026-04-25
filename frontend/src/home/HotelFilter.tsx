@@ -5,9 +5,10 @@ import "./HotelFilter.css";
 interface Props {
   hotels: Hotel[];
   onFilter: (filtered: Hotel[]) => void;
+  onFiltersChange: (filters: any) => void; 
 }
 
-export default function HotelFilter({ hotels, onFilter }: Props) {
+export default function HotelFilter({ hotels, onFilter, onFiltersChange }: Props) {
   const [maxPrice, setMaxPrice] = useState(1000);
   const [minRating, setMinRating] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
@@ -37,7 +38,9 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
         selected.every((a) => h.amenities.includes(a));
       return priceOk && ratingOk && amenitiesOk;
     });
+    
     onFilter(filtered);
+    onFiltersChange({maxPrice:maxPrice, minRating:minRating, selectedAmenities:selected})
   }, [hotels, maxPrice, minRating, selected, onFilter]);
 
   const toggle = (amenity: string) =>

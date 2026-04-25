@@ -1,12 +1,15 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
 import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "../settings/savedSearches";
+import { useAuth } from "../context/AuthContext";
 import "./SearchHero.css";
+import type { SortField, SortOrder } from "./HomePage";
 
 export interface SearchValues {
   destination: string;
   checkIn: string;
   checkOut: string;
   guests: number;
+  savedSearchId?: string
 }
 
 /** Exposed to HomePage so the Clear button can reset all fields */
@@ -18,14 +21,26 @@ interface Props {
   onSearch: (values: SearchValues) => void;
   isLoading: boolean;
   resultCount: number | null;
+  filters: {
+    maxPrice: number,
+    minRating: number,
+    selectedAmenities: string[]
+  },
+  sortSettings: {
+    sortField: SortField,
+    sortOrder: SortOrder
+  }
 }
 
 const SearchHero = forwardRef<SearchHeroHandle, Props>(
-  ({ onSearch, isLoading, resultCount }, ref) => {
+  ({ onSearch, isLoading, resultCount, filters, sortSettings }, ref) => {
     const [destination, setDestination] = useState("");
     const [checkIn, setCheckIn] = useState("");
     const [checkOut, setCheckOut] = useState("");
     const [guests, setGuests] = useState(1);
+    const [error, setError] = useState("");
+    const [savedSuccess, setSavedSucccess] = useState("")
+    const auth = useAuth();
 
     const today = new Date().toISOString().split("T")[0];
     const canSearch = destination.trim() && checkIn && checkOut;
@@ -46,18 +61,31 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
       }
     };
 
-    const handleSaveSearch = () => {
+    const handleSaveSearch = async () => {
       if (!canSearch) return;
-      const newEntry: SavedSearch = {
-        id: crypto.randomUUID(),
-        destination: destination.trim(),
-        checkIn,
-        checkOut,
-        guests,
-        savedAt: new Date().toISOString(),
-      };
-      const updated = [newEntry, ...readSavedSearches()];
-      try { localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      try {
+        const body = JSON.stringify({
+          destination: destination.trim(),
+          check_in: checkIn,
+          check_out: checkOut,
+          guests: String(guests),
+          max_price: filters.maxPrice,
+          min_rating: filters.minRating,
+          amenities: filters.selectedAmenities,
+          sort_field: sortSettings.sortField,
+          sort_order: sortSettings.sortOrder
+        });
+        const res = await fetch(`/saved-searches/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...auth.authHeader() },
+          body,
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error || "Failed to save search."); return; }
+        setError(""); 
+        setSavedSucccess("Search successfully saved.")
+      }
+      catch { setError("Network error — please try again."); }
     };
 
     return (
@@ -143,6 +171,8 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
                 : `${resultCount} hotel${resultCount === 1 ? "" : "s"} found`}
             </p>
           )}
+          {error && <div className="alert alert-error">{error}</div>}
+          {savedSuccess && <div className="alert alert-success">{savedSuccess}</div>}
         </div>
       </section>
     );

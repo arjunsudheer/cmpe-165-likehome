@@ -4,9 +4,10 @@ import HotelFilter from "./HotelFilter";
 import type { Hotel } from "./Hotel";
 import { CARD_GRADIENTS } from "../constants";
 import "./HomePage.css";
+import { useSearchParams } from "react-router-dom";
 
-type SortField = "name" | "price" | "rating";
-type SortOrder = "asc" | "desc";
+export type SortField = "name" | "price" | "rating";
+export type SortOrder = "asc" | "desc";
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -154,6 +155,12 @@ export default function HomePage() {
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+  const [filters, setFilters] = useState({
+    maxPrice: 1000,
+    minRating: 0,
+    selectedAmenities: [] as string[]
+  });
+  const [searchParams] = useSearchParams();
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>("rating");
@@ -171,6 +178,22 @@ export default function HomePage() {
 
   // Load all hotels on mount
   useEffect(() => {
+    const destination = searchParams.get('destination');
+    const checkIn = searchParams.get('checkIn');
+    const checkOut = searchParams.get('checkOut');
+    const guests = searchParams.get('guests');
+    const savedSearchId = searchParams.get('savedSearchId');
+    
+    if (destination && checkIn && checkOut && guests) {
+      handleSearch({
+        destination,
+        checkIn,
+        checkOut,
+        guests: parseInt(guests),
+        savedSearchId: savedSearchId || undefined
+      });
+    }
+    else {
     fetch("/hotels/")
       .then((r) => r.json())
       .then((data) => {
@@ -180,9 +203,10 @@ export default function HomePage() {
       })
       .catch(() => setError("Failed to load hotels."))
       .finally(() => setLoading(false));
+    }
   }, []);
 
-  const handleSearch = async ({ destination, checkIn, checkOut, guests }: SearchValues) => {
+  const handleSearch = async ({ destination, checkIn, checkOut, guests, savedSearchId }: SearchValues) => {
     setSearching(true);
     setError("");
     try {
@@ -190,6 +214,7 @@ export default function HomePage() {
         destination,
         check_in: checkIn,
         check_out: checkOut,
+        ...(savedSearchId && { saved_search_id: savedSearchId })  
       });
       const res = await fetch(`/hotels/search?${params}`);
       const data = await res.json();
@@ -209,6 +234,7 @@ export default function HomePage() {
       setError("Network error — please try again.");
     } finally {
       setSearching(false);
+      setLoading(false);
     }
   };
 
@@ -238,10 +264,12 @@ export default function HomePage() {
         onSearch={handleSearch}
         isLoading={searching}
         resultCount={resultCount}
+        filters={filters}
+        sortSettings={{sortField:sortField, sortOrder:sortOrder}}
       />
 
       <div className="home-body">
-        <HotelFilter hotels={allHotels} onFilter={setFiltered} />
+        <HotelFilter hotels={allHotels} onFilter={setFiltered} onFiltersChange={setFilters} />
 
         <section className="hotel-grid-section">
           <div className="hotel-grid-header">

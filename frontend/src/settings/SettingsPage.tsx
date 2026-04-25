@@ -4,11 +4,12 @@ import { useAuth } from "../context/AuthContext";
 import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "./savedSearches";
 import "./SettingsPage.css";
 
-function deleteSavedSearch(id: string): SavedSearch[] {
-  const updated = readSavedSearches().filter((s) => s.id !== id);
-  try { localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
-  return updated;
-}
+async function deleteSavedSearch(id: string, token: string) {
+    await fetch(`/saved-searches/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    })
+  }
 
 export default function SettingsPage() {
   const auth = useAuth();
@@ -16,6 +17,7 @@ export default function SettingsPage() {
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(readSavedSearches);
+  const [error, setError] = useState("")
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -36,6 +38,12 @@ export default function SettingsPage() {
         }
       })
       .catch((err) => console.error("Failed to fetch settings", err));
+      fetch("/saved-searches/", {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => setSavedSearches(data.results ?? []))
+        .catch((err) => console.error("Failed to fetch saved searches", err));
   }, [auth.isAuthenticated, auth.token, navigate]);
 
   if (!auth.isAuthenticated) return null;
@@ -64,8 +72,16 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setSavedSearches(deleteSavedSearch(id));
+  const handleDelete = async(id: string) => {
+    try {
+      await deleteSavedSearch(id, auth.token,);
+    }
+    catch { setError("Network error — please try again."); }
+    setSavedSearches(prev => prev.filter(s => s.id !== id));
+  };
+
+  const loadSavedSearch = (savedSearch: SavedSearch) => {
+    navigate(`/?destination=${encodeURIComponent(savedSearch.destination)}&checkIn=${savedSearch.checkIn}&checkOut=${savedSearch.checkOut}&guests=${savedSearch.guests}&savedSearchId=${savedSearch.id}`);
   };
 
   return (
@@ -97,6 +113,7 @@ export default function SettingsPage() {
         {/* Saved Searches */}
         <div className="settings-card card">
           <h2 className="settings-section-title">Saved Searches</h2>
+          {error && <div className="alert alert-error">{error}</div>}
           {savedSearches.length === 0 ? (
             <p className="saved-searches-empty">
               No saved searches yet. Search for hotels and save your filters.
@@ -106,7 +123,7 @@ export default function SettingsPage() {
               {savedSearches.map((s) => (
                 <li key={s.id} className="saved-search-item">
                   <div className="saved-search-info">
-                    <span className="saved-search-destination">{s.destination}</span>
+                    <span className="saved-search-destination" onClick={() => loadSavedSearch(s)}>{s.destination}</span>
                     <span className="saved-search-meta">
                       {s.checkIn} → {s.checkOut} · {s.guests} guest{s.guests !== 1 ? "s" : ""}
                     </span>
