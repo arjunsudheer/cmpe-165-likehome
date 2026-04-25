@@ -51,10 +51,12 @@ def create_app():
     from backend.search import search_bp
     from backend.reservation import reservation_bp
     from backend.rewards import rewards_bp
+    from backend.saved_searches import saved_search_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(search_bp, url_prefix="/hotels")
     app.register_blueprint(reservation_bp, url_prefix="/reservations")
     app.register_blueprint(rewards_bp, url_prefix="/rewards")
+    app.register_blueprint(saved_search_bp, url_prefix="/saved-searches")
 
     return app

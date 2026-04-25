@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func, select
 
 from backend.db.db_connection import session
-from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User
+from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, SavedSearch
 from backend.search import search_bp
 
 
@@ -45,8 +45,15 @@ def _get_sort_clause():
       ?sort=rating&order=desc
     Defaults to rating desc, then price asc.
     """
-    sort_field = request.args.get("sort", "rating").strip().lower()
-    sort_order = request.args.get("order", "desc").strip().lower()
+    sort_field = request.args.get("sort_field") or request.args.get("sort")
+    if not sort_field:
+        sort_field = "rating"
+    sort_field = sort_field.strip().lower()
+    
+    sort_order = request.args.get("sort_order") or request.args.get("order")
+    if not sort_order:
+        sort_order = "desc"
+    sort_order = sort_order.strip().lower()
 
     valid_fields = {"price", "rating"}
     valid_orders = {"asc", "desc"}
@@ -96,6 +103,15 @@ def search_hotels():
     destination = request.args.get("destination", "").strip()
     check_in_raw = request.args.get("check_in")
     check_out_raw = request.args.get("check_out")
+    saved_search_id = request.args.get("saved_search_id") or None
+
+    filters = {}
+    if saved_search_id:
+        saved_search = session.execute(select(SavedSearch).where(SavedSearch.id==saved_search_id)).scalar_one_or_none()
+        destination = saved_search.destination
+        check_in_raw = date.isoformat(saved_search.check_in)
+        check_out_raw = date.isoformat(saved_search.check_out)
+        filters = saved_search.filters
 
     if not destination:
         return jsonify({"error": "destination is required"}), 400
@@ -122,6 +138,7 @@ def search_hotels():
         "check_in": check_in.isoformat(),
         "check_out": check_out.isoformat(),
         "results": [_hotel_summary(h) for h in hotels],
+        "filters": filters or {}
     }), 200
 
 
