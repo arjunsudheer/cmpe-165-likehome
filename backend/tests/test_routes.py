@@ -296,3 +296,92 @@ class TestPasswordReset:
         assert response.get_json() == {
             "error": "This reset link is invalid or has expired"
         }
+
+    def test_reset_password_rejects_reusing_current_password(self, client, session):
+        session.add(
+            User(
+                name="Repeat User",
+                email="repeat@example.com",
+                password=hash_password("samepassword"),
+            )
+        )
+        session.commit()
+
+        forgot = client.post(
+            "/auth/forgot-password",
+            json={"email": "repeat@example.com"},
+        )
+        token = forgot.get_json()["reset_token"]
+
+        response = client.post(
+            "/auth/reset-password",
+            json={"token": token, "password": "samepassword"},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "error": "Choose a new password that is different from your current password"
+        }
+
+        login_same = client.post(
+            "/auth/login",
+            json={"email": "repeat@example.com", "password": "samepassword"},
+        )
+        assert login_same.status_code == 200
+
+        reset_record = session.query(PasswordResetToken).one()
+        assert reset_record.used_at is None
+
+    def test_validate_reset_password_accepts_active_token(self, client, session):
+        session.add(
+            User(
+                name="Validate User",
+                email="validate@example.com",
+                password=hash_password("oldpassword"),
+            )
+        )
+        session.commit()
+
+        forgot = client.post(
+            "/auth/forgot-password",
+            json={"email": "validate@example.com"},
+        )
+        token = forgot.get_json()["reset_token"]
+
+        response = client.get(
+            f"/auth/reset-password/validate?token={token}"
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"message": "Reset link is valid"}
+
+    def test_validate_reset_password_rejects_used_token(self, client, session):
+        session.add(
+            User(
+                name="Used User",
+                email="used@example.com",
+                password=hash_password("oldpassword"),
+            )
+        )
+        session.commit()
+
+        forgot = client.post(
+            "/auth/forgot-password",
+            json={"email": "used@example.com"},
+        )
+        token = forgot.get_json()["reset_token"]
+
+        reset = client.post(
+            "/auth/reset-password",
+            json={"token": token, "password": "newpassword"},
+        )
+        assert reset.status_code == 200
+
+        response = client.get(
+            f"/auth/reset-password/validate?token={token}"
+        )
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "error": "This reset link is invalid or has expired"
+        }

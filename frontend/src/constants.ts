@@ -5,6 +5,7 @@
  */
 export const AUTH_API_FORGOT_PASSWORD = "/auth/forgot-password";
 export const AUTH_API_RESET_PASSWORD = "/auth/reset-password";
+export const AUTH_API_VALIDATE_RESET_PASSWORD = "/auth/reset-password/validate";
 
 /** 100 points = $1.00 when redeeming */
 export const POINTS_REDEEM_RATE = 100;

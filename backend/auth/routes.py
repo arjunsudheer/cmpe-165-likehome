@@ -13,7 +13,7 @@ from backend.auth.forms import (
     validate_password,
     validate_registration,
 )
-from backend.auth.password_utils import hash_password
+from backend.auth.password_utils import check_password, hash_password
 from backend.db.db_connection import session
 from backend.db.models import Notification, PasswordResetToken, User
 from backend.extensions import bcrypt
@@ -49,6 +49,27 @@ def _password_reset_message():
 def _build_reset_link(token):
     base = current_app.config.get("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
     return f"{base}/reset-password?token={token}"
+
+
+def _get_valid_reset_record(token):
+    now = _utcnow()
+    token_hash = _hash_reset_token(token)
+    reset_record = session.query(PasswordResetToken).filter_by(
+        token_hash=token_hash
+    ).first()
+
+    if (
+        reset_record is None
+        or reset_record.used_at is not None
+        or reset_record.expires_at < now
+    ):
+        return None
+
+    user = session.query(User).filter_by(id=reset_record.user_id).first()
+    if user is None:
+        return None
+
+    return reset_record
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -214,22 +235,16 @@ def reset_password():
     if err:
         return jsonify({"error": err}), 400
 
+    reset_record = _get_valid_reset_record(token)
+    if reset_record is None:
+        return jsonify({"error": "This reset link is invalid or has expired"}), 400
+
     now = _utcnow()
-    token_hash = _hash_reset_token(token)
-    reset_record = session.query(PasswordResetToken).filter_by(
-        token_hash=token_hash
-    ).first()
-
-    if (
-        reset_record is None
-        or reset_record.used_at is not None
-        or reset_record.expires_at < now
-    ):
-        return jsonify({"error": "This reset link is invalid or has expired"}), 400
-
     user = session.query(User).filter_by(id=reset_record.user_id).first()
-    if user is None:
-        return jsonify({"error": "This reset link is invalid or has expired"}), 400
+    if check_password(password, user.password):
+        return jsonify({
+            "error": "Choose a new password that is different from your current password"
+        }), 400
 
     user.password = hash_password(password)
     reset_record.used_at = now
@@ -241,6 +256,19 @@ def reset_password():
     session.commit()
 
     return jsonify({"message": "Password updated successfully"}), 200
+
+
+@auth_bp.route("/reset-password/validate", methods=["GET"])
+def validate_reset_password_token():
+    token = (request.args.get("token") or "").strip()
+
+    if not token:
+        return jsonify({"error": "token is required"}), 400
+
+    if _get_valid_reset_record(token) is None:
+        return jsonify({"error": "This reset link is invalid or has expired"}), 400
+
+    return jsonify({"message": "Reset link is valid"}), 200
 
 @auth_bp.route("/settings", methods=["GET"])
 @jwt_required()

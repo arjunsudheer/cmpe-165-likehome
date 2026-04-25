@@ -18,7 +18,8 @@ def create_app():
     app = Flask(__name__)
     debug_enabled = _env_flag("FLASK_DEBUG", False)
     app.config["JWT_SECRET_KEY"] = os.environ.get(
-        "JWT_SECRET_KEY", "likehome-dev-secret-change-in-prod"
+        "JWT_SECRET_KEY",
+        os.environ.get("SECRET_KEY", "likehome-dev-secret-change-in-prod"),
     )
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
     # Empty string means Google OAuth is disabled — the frontend hides the button
