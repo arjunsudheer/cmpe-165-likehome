@@ -32,7 +32,11 @@ def send_email(to_email: str, subject: str, body: str):
             server.send_message(msg)
             print(f"Successfully sent email to {to_email}")
     except ConnectionRefusedError:
-        print(f"[Email Not Sent] Connection refused to {SMTP_HOST}:{SMTP_PORT}. "
-              f"Could not send email to {to_email} with subject '{subject}'.")
-    except Exception as e: # pylint: disable=broad-exception-caught
-        print(f"Failed to send email to {to_email}: {e}")
+        print(
+            f"[Email Not Sent] Connection refused to {smtp_host}:{smtp_port}. "
+            f"Could not send email to {to_email} with subject '{subject}'."
+        )
+        return False
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        print(f"Failed to send email to {to_email}: {exc}")
+        return False

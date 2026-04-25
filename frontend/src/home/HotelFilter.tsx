@@ -2,12 +2,19 @@ import { useEffect, useState } from "react";
 import type { Hotel } from "./Hotel";
 import "./HotelFilter.css";
 
+interface Filters {
+  maxPrice: number;
+  minRating: number;
+  selectedAmenities: string[];
+}
+
 interface Props {
   hotels: Hotel[];
   onFilter: (filtered: Hotel[]) => void;
+  onFiltersChange: (filters: Filters) => void; 
 }
 
-export default function HotelFilter({ hotels, onFilter }: Props) {
+export default function HotelFilter({ hotels, onFilter, onFiltersChange }: Props) {
   const [maxPrice, setMaxPrice] = useState(1000);
   const [minRating, setMinRating] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
@@ -37,8 +44,10 @@ export default function HotelFilter({ hotels, onFilter }: Props) {
         selected.every((a) => h.amenities.includes(a));
       return priceOk && ratingOk && amenitiesOk;
     });
+    
     onFilter(filtered);
-  }, [hotels, maxPrice, minRating, selected, onFilter]);
+    onFiltersChange({maxPrice:maxPrice, minRating:minRating, selectedAmenities:selected})
+  }, [hotels, maxPrice, minRating, selected, onFilter, onFiltersChange]);
 
   const toggle = (amenity: string) =>
     setSelected((prev) =>
