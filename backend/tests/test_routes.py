@@ -189,6 +189,15 @@ class TestHotelSorting:
 
 class TestPasswordReset:
 
+    def test_forgot_password_rejects_invalid_email(self, client):
+        response = client.post(
+            "/auth/forgot-password",
+            json={"email": "not-an-email"},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "Invalid email format"}
+
     def test_forgot_password_returns_dev_token_for_existing_user(self, client, session):
         session.add(
             User(
@@ -229,6 +238,50 @@ class TestPasswordReset:
         }
         mock_send_email.assert_not_called()
         assert session.query(PasswordResetToken).count() == 0
+
+    def test_forgot_password_invalidates_previous_unused_token(self, client, session):
+        session.add(
+            User(
+                name="Reset User",
+                email="rotate@example.com",
+                password=hash_password("oldpassword"),
+            )
+        )
+        session.commit()
+
+        first = client.post(
+            "/auth/forgot-password",
+            json={"email": "rotate@example.com"},
+        )
+        first_token = first.get_json()["reset_token"]
+
+        second = client.post(
+            "/auth/forgot-password",
+            json={"email": "rotate@example.com"},
+        )
+        second_token = second.get_json()["reset_token"]
+
+        assert first_token != second_token
+
+        first_reset = client.post(
+            "/auth/reset-password",
+            json={"token": first_token, "password": "brandnewpassword"},
+        )
+        assert first_reset.status_code == 400
+        assert first_reset.get_json() == {
+            "error": "This reset link is invalid or has expired"
+        }
+
+        second_reset = client.post(
+            "/auth/reset-password",
+            json={"token": second_token, "password": "brandnewpassword"},
+        )
+        assert second_reset.status_code == 200
+
+        reset_records = session.query(PasswordResetToken).order_by(PasswordResetToken.id).all()
+        assert len(reset_records) == 2
+        assert reset_records[0].used_at is not None
+        assert reset_records[1].used_at is not None
 
     def test_reset_password_updates_password_and_consumes_token(self, client, session):
         session.add(
@@ -295,6 +348,41 @@ class TestPasswordReset:
         assert response.status_code == 400
         assert response.get_json() == {
             "error": "This reset link is invalid or has expired"
+        }
+
+    def test_reset_password_requires_token(self, client):
+        response = client.post(
+            "/auth/reset-password",
+            json={"password": "newpassword"},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "token is required"}
+
+    def test_reset_password_rejects_short_password(self, client, session):
+        session.add(
+            User(
+                name="Short User",
+                email="short@example.com",
+                password=hash_password("oldpassword"),
+            )
+        )
+        session.commit()
+
+        forgot = client.post(
+            "/auth/forgot-password",
+            json={"email": "short@example.com"},
+        )
+        token = forgot.get_json()["reset_token"]
+
+        response = client.post(
+            "/auth/reset-password",
+            json={"token": token, "password": "123"},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "error": "Password must be at least 6 characters"
         }
 
     def test_reset_password_rejects_reusing_current_password(self, client, session):
@@ -385,3 +473,9 @@ class TestPasswordReset:
         assert response.get_json() == {
             "error": "This reset link is invalid or has expired"
         }
+
+    def test_validate_reset_password_requires_token(self, client):
+        response = client.get("/auth/reset-password/validate")
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "token is required"}
