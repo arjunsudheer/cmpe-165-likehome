@@ -26,7 +26,7 @@ def _make_room(session, hotel):
     return r
 
 
-def _make_booking(session, user, room, status=Status.CONFIRMED):
+def _make_booking(session, user, room, status=Status.COMPLETED):
     from datetime import date
     from backend.reservation.utils import generate_booking_number
     b = Booking(
@@ -84,7 +84,7 @@ class TestCreateReview:
         user = session.query(User).filter_by(email="post-success@example.com").one()
         hotel = _make_hotel(session)
         room = _make_room(session, hotel)
-        _make_booking(session, user, room, status=Status.CONFIRMED)
+        _make_booking(session, user, room, status=Status.COMPLETED)
         session.flush()
 
         res = review_client.post(f"/hotels/{hotel.id}/reviews", json={

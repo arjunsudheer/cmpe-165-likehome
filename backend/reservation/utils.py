@@ -123,14 +123,12 @@ def send_cancellation_email(
     fee_amount: Decimal,
     refund_amount: Decimal,
 ) -> bool:
+    subject = f"LikeHome cancellation confirmation - {booking_number}"
     body = "\n".join([
         "Your reservation has been cancelled.",
         f"Booking number: {booking_number}",
         f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
         f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
     ])
-    return send_email(
-        to_email,
-        f"LikeHome cancellation confirmation - {booking_number}",
-        body,
-    )
+    
+    return send_email(to_email, subject, body)
