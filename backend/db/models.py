@@ -2,7 +2,7 @@ import enum
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime,
-    Enum, ForeignKey, Integer, Numeric, String, func,
+    Enum, ForeignKey, Integer, Numeric, String, func, JSON
 )
 from backend.db.db_connection import Base
 
@@ -146,3 +146,16 @@ class PasswordResetToken(Base):
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+class SavedSearch(Base):
+    __tablename__ = "saved_searches"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    destination = Column(String(100), nullable=False)
+    check_in = Column(Date, nullable=False)
+    check_out = Column(Date, nullable=False)
+    guests = Column(Integer, nullable=False)
+    filters = Column(JSON)
+    sorting = Column(JSON)
+    recorded_at = Column(DateTime, server_default=func.now())
+
