@@ -45,21 +45,15 @@ def create_saved_search():
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
     
-    max_price = data.get("max_price")
-    min_rating = data.get("min_rating")
-    amenities = data.get("amenities", [])
-    
     filters = {
-        "max_price": max_price,
-        "min_rating": min_rating, 
-        "amenities": amenities
+        "max_price": data.get("max_price"),
+        "min_rating": data.get("min_rating"), 
+        "amenities": data.get("amenities", [])
     }
-    sort_field = data.get("sort_field")
-    sort_order = data.get("sort_order")
-    
+
     sorting = {
-        "sort_field": sort_field,
-        "sort_order": sort_order
+        "sort_field": data.get("sort_field"),
+        "sort_order": data.get("sort_order")
     }
     new_search = SavedSearch(user_id=user_id, destination=destination, check_in=check_in, check_out=check_out, guests=guests, filters=filters, sorting=sorting)
     session.add(new_search)

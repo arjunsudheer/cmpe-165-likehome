@@ -158,4 +158,3 @@ class SavedSearch(Base):
     filters = Column(JSON)
     sorting = Column(JSON)
     recorded_at = Column(DateTime, server_default=func.now())
-
