@@ -37,7 +37,7 @@ def _auth_headers(client, email="test@example.com"):
     token = response.get_json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-def test_send_booking_reminders(client, session):
+def test_send_booking_reminders(client, session): # pylint: disable=too-many-locals
     # Create user with notifications turned on
     user = User(email="reminder@test.com", password="pwd", name="Reminder Test", send_reminder_email=True)
     session.add(user)

@@ -143,7 +143,7 @@ def create_booking_reminders():
                     # Send Email Notification
                     subject = "Upcoming Stay Reminder - LikeHome"
                     send_email(user.email, subject, message)
-                except Exception as e:
+                except Exception as e: # pylint: disable=broad-exception-caught
                     print(f"Error creating notification for {user.email}: {e}")
                     
             session.commit()
