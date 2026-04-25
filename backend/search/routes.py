@@ -2,7 +2,7 @@ from datetime import date
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select, and_, or_
 
 from backend.db.db_connection import session
 from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status, SavedSearch
@@ -129,7 +129,7 @@ def search_hotels():
     sort_clause = _get_sort_clause()
     hotels = session.execute(
         select(Hotel)
-        .where(Hotel.city.ilike(f"%{destination}%"))
+        .where(or_(Hotel.city.ilike(f"%{destination}%"), Hotel.name.ilike(f"%{destination}%")))
         .order_by(*sort_clause)
     ).scalars().all()
 
