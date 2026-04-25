@@ -68,9 +68,16 @@ def test_send_booking_reminders(client, session):
     import backend.jobs.bookings
     from unittest.mock import patch
     
-    with patch("backend.jobs.bookings.Session") as MockSession:
+    with patch("backend.jobs.bookings.Session") as MockSession, \
+         patch("backend.jobs.bookings.send_email") as mock_send_email:
         MockSession.return_value.__enter__.return_value = session
         create_booking_reminders()
+
+    # Check if send_email was called
+    mock_send_email.assert_called_once()
+    args, _ = mock_send_email.call_args
+    assert args[0] == "reminder@test.com"
+    assert "REMIND1" in args[2]
 
     # Check if reminder was marked as created
     session.expire_all()

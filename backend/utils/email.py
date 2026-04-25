@@ -1,23 +1,34 @@
+import os
 import smtplib
 from email.message import EmailMessage # pylint: disable=no-name-in-module
 
-SMTP_HOST = "localhost"
-SMTP_PORT = 1025 # Common testing port for python -m smtpd -n -c DebuggingServer localhost:1025
+# SMTP settings from environment variables
+SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 1025))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "false").lower() == "true"
+SMTP_FROM_EMAIL = os.environ.get("SMTP_FROM_EMAIL", "noreply@likehome.com")
 
 def send_email(to_email: str, subject: str, body: str):
     """
-    Sends an email using the local SMTP server.
-    Raises ConnectionRefusedError if the SMTP server is not running, 
-    but we catch it to prevent the job from failing if the user hasn't started the server.
+    Sends an email using the configured SMTP server.
     """
     msg = EmailMessage()
     msg.set_content(body)
     msg['Subject'] = subject
-    msg['From'] = "noreply@likehome.com"
+    msg['From'] = SMTP_FROM_EMAIL
     msg['To'] = to_email
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        # Use SMTP_SSL for port 465, but here we use standard SMTP + starttls for port 587
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            if SMTP_USE_TLS:
+                server.starttls()
+            
+            if SMTP_USERNAME and SMTP_PASSWORD:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                
             server.send_message(msg)
             print(f"Successfully sent email to {to_email}")
     except ConnectionRefusedError:

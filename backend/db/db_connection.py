@@ -16,4 +16,4 @@ class Base(DeclarativeBase):
 
 
 SessionLocal = scoped_session(sessionmaker(bind=engine))
-session = SessionLocal()
+session = SessionLocal
