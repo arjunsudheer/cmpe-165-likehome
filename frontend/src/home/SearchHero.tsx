@@ -1,5 +1,4 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
-import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "../settings/savedSearches";
 import { useAuth } from "../context/AuthContext";
 import "./SearchHero.css";
 import type { SortField, SortOrder } from "./HomePage";

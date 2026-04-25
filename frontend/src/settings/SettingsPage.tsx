@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { SAVED_SEARCHES_KEY, readSavedSearches, type SavedSearch } from "./savedSearches";
+import { readSavedSearches, type SavedSearch } from "./savedSearches";
 import "./SettingsPage.css";
 
 async function deleteSavedSearch(id: string, token: string) {

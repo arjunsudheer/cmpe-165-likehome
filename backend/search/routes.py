@@ -45,8 +45,15 @@ def _get_sort_clause():
       ?sort=rating&order=desc
     Defaults to rating desc, then price asc.
     """
-    sort_field = request.args.get("sort_field", "rating").strip().lower()
-    sort_order = request.args.get("sort_order", "desc").strip().lower()
+    sort_field = request.args.get("sort_field") or request.args.get("sort")
+    if not sort_field:
+        sort_field = "rating"
+    sort_field = sort_field.strip().lower()
+    
+    sort_order = request.args.get("sort_order") or request.args.get("order")
+    if not sort_order:
+        sort_order = "desc"
+    sort_order = sort_order.strip().lower()
 
     valid_fields = {"price", "rating"}
     valid_orders = {"asc", "desc"}

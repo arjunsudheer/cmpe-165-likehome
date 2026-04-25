@@ -204,7 +204,7 @@ export default function HomePage() {
       .catch(() => setError("Failed to load hotels."))
       .finally(() => setLoading(false));
     }
-  }, []);
+  }, [searchParams]);
 
   const handleSearch = async ({ destination, checkIn, checkOut, guests, savedSearchId }: SearchValues) => {
     setSearching(true);

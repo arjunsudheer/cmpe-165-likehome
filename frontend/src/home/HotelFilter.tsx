@@ -2,10 +2,16 @@ import { useEffect, useState } from "react";
 import type { Hotel } from "./Hotel";
 import "./HotelFilter.css";
 
+interface Filters {
+  maxPrice: number;
+  minRating: number;
+  selectedAmenities: string[];
+}
+
 interface Props {
   hotels: Hotel[];
   onFilter: (filtered: Hotel[]) => void;
-  onFiltersChange: (filters: any) => void; 
+  onFiltersChange: (filters: Filters) => void; 
 }
 
 export default function HotelFilter({ hotels, onFilter, onFiltersChange }: Props) {
@@ -41,7 +47,7 @@ export default function HotelFilter({ hotels, onFilter, onFiltersChange }: Props
     
     onFilter(filtered);
     onFiltersChange({maxPrice:maxPrice, minRating:minRating, selectedAmenities:selected})
-  }, [hotels, maxPrice, minRating, selected, onFilter]);
+  }, [hotels, maxPrice, minRating, selected, onFilter, onFiltersChange]);
 
   const toggle = (amenity: string) =>
     setSelected((prev) =>
