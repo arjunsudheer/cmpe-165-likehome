@@ -2,10 +2,10 @@ from datetime import date
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 
 from backend.db.db_connection import session
-from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, SavedSearch
+from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status
 from backend.search import search_bp
 
 
@@ -204,6 +204,19 @@ def create_review(hotel_id):
     if not session.get(User, user_id):
         return jsonify({"error": "User not found"}), 404
 
+    stayed = session.execute(
+        select(Booking).where(
+            and_(
+                Booking.user == user_id,
+                Booking.room.in_(select(HotelRoom.id).where(HotelRoom.hotel == hotel_id)),
+                Booking.status == Status.COMPLETED
+            )
+        )
+    ).scalar_one_or_none()
+
+    if not stayed:
+        return jsonify({"error": "You may only review hotels that you have stayed at."}), 403
+
     data = request.get_json(silent=True) or {}
     rating = data.get("rating")
 
@@ -221,3 +234,70 @@ def create_review(hotel_id):
     session.commit()
     new_rating = refresh_hotel_rating(hotel_id)
     return jsonify({"message": "Review created", "hotel_rating": new_rating}), 201
+
+
+@search_bp.route("/<int:hotel_id>/reviews/<int:review_id>", methods=["PATCH"])
+@jwt_required()
+def edit_review(hotel_id, review_id):
+    user_id = int(get_jwt_identity())
+
+    review = session.get(Review, review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+    if review.hotel != hotel_id:
+        return jsonify({"error": "Review does not belong to this hotel"}), 404
+    if review.user != user_id:
+        return jsonify({"error": "You can only edit your own reviews"}), 403
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get("rating")
+    title = data.get("title")
+    content = data.get("content")
+
+    if rating is not None:
+        if not isinstance(rating, int) or not 1 <= rating <= 5:
+            return jsonify({"error": "rating must be integer 1–5"}), 400
+        review.rating = rating
+    if title is not None:
+        if len(title) > 20 or not title.strip():
+            return jsonify({"error": "Title must be 20 characters or fewer"}), 400
+        review.title = title.strip()
+    if content is not None:
+        if len(content) > 255 or not content.strip():
+            return jsonify({"error": "Content must be 255 characters or fewer"}), 400
+        review.content = content.strip()
+
+    session.commit()
+    new_rating = refresh_hotel_rating(hotel_id)
+    return jsonify({
+        "message": "Review updated",
+        "review": {
+            "id": review.id,
+            "title": review.title,
+            "content": review.content,
+            "rating": review.rating,
+        },
+        "hotel_rating": new_rating,
+    }), 200
+
+
+@search_bp.route("/<int:hotel_id>/reviews/<int:review_id>", methods=["DELETE"])
+@jwt_required()
+def delete_review(hotel_id, review_id):
+    user_id = int(get_jwt_identity())
+
+    review = session.get(Review, review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+    if review.hotel != hotel_id:
+        return jsonify({"error": "Review does not belong to this hotel"}), 404
+    if review.user != user_id:
+        return jsonify({"error": "You can only delete your own reviews"}), 403
+
+    session.delete(review)
+    session.commit()
+    new_rating = refresh_hotel_rating(hotel_id)
+    return jsonify({
+        "message": "Review deleted",
+        "hotel_rating": new_rating,
+    }), 200
