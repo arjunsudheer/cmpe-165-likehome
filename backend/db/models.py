@@ -106,6 +106,8 @@ class Notification(Base):
     message = Column(String(255), nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+
+
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True)
@@ -125,6 +127,7 @@ class PointsTransaction(Base):
     log = Column(String(100), nullable=False)
     recorded_at = Column(DateTime, server_default=func.now())
 
+
 class Coupon(Base):
     __tablename__ = "coupons"
     id = Column(Integer, primary_key=True)
@@ -133,3 +136,13 @@ class Coupon(Base):
     value_in_points = Column(Integer, nullable=False)
     status = Column(Enum(CouponStatus, native_enum=False), default=CouponStatus.REDEEMABLE)
     expires_at = Column(DateTime)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token_hash = Column(String(64), unique=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())

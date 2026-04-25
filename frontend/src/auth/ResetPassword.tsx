@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { AUTH_API_RESET_PASSWORD } from "../constants";
+import {
+  AUTH_API_RESET_PASSWORD,
+  AUTH_API_VALIDATE_RESET_PASSWORD,
+} from "../constants";
 import "./Auth.css";
 
 interface Errs { password?: string; confirm?: string; }
+type TokenStatus = "checking" | "valid" | "invalid";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -16,6 +20,49 @@ export default function ResetPassword() {
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus>(
+    token ? "checking" : "invalid",
+  );
+
+  useEffect(() => {
+    if (!token) {
+      setTokenStatus("invalid");
+      return;
+    }
+
+    let cancelled = false;
+
+    const validateToken = async () => {
+      setTokenStatus("checking");
+      try {
+        const res = await fetch(
+          `${AUTH_API_VALIDATE_RESET_PASSWORD}?token=${encodeURIComponent(token)}`,
+        );
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setApiError(data.error || "This reset link is invalid or has expired");
+          setTokenStatus("invalid");
+          return;
+        }
+
+        setApiError("");
+        setTokenStatus("valid");
+      } catch {
+        if (cancelled) return;
+        setApiError("Could not verify this reset link. Please try again.");
+        setTokenStatus("invalid");
+      }
+    };
+
+    void validateToken();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const validate = () => {
     const e: Errs = {};
@@ -32,6 +79,10 @@ export default function ResetPassword() {
       setApiError("This reset link is missing a token. Open the link from your email again.");
       return;
     }
+    if (tokenStatus !== "valid") {
+      setApiError("This reset link is invalid or has expired");
+      return;
+    }
     if (!validate()) return;
     setLoading(true);
     try {
@@ -43,6 +94,7 @@ export default function ResetPassword() {
       const data = await res.json();
       if (!res.ok) {
         setApiError(data.error || "Could not update password.");
+        setTokenStatus("invalid");
         return;
       }
       setDone(true);
@@ -105,43 +157,51 @@ export default function ResetPassword() {
           </div>
         )}
 
+        {token && tokenStatus === "checking" && (
+          <div className="alert alert-info" style={{ marginBottom: 16 }}>
+            Checking your reset link...
+          </div>
+        )}
+
         {apiError && <div className="alert alert-error">{apiError}</div>}
 
-        <form onSubmit={handleSubmit} noValidate className="auth-form">
-          <div className="form-group">
-            <label className="form-label">New password</label>
-            <input
-              className={`form-input${errs.password ? " error" : ""}`}
-              type="password"
-              placeholder="At least 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-            {errs.password && <span className="form-error">{errs.password}</span>}
-          </div>
+        {tokenStatus === "valid" && (
+          <form onSubmit={handleSubmit} noValidate className="auth-form">
+            <div className="form-group">
+              <label className="form-label">New password</label>
+              <input
+                className={`form-input${errs.password ? " error" : ""}`}
+                type="password"
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+              {errs.password && <span className="form-error">{errs.password}</span>}
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Confirm password</label>
-            <input
-              className={`form-input${errs.confirm ? " error" : ""}`}
-              type="password"
-              placeholder="Re-enter password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-            />
-            {errs.confirm && <span className="form-error">{errs.confirm}</span>}
-          </div>
+            <div className="form-group">
+              <label className="form-label">Confirm password</label>
+              <input
+                className={`form-input${errs.confirm ? " error" : ""}`}
+                type="password"
+                placeholder="Re-enter password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+              />
+              {errs.confirm && <span className="form-error">{errs.confirm}</span>}
+            </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg auth-submit"
-            disabled={loading || !token}
-          >
-            {loading ? "Saving…" : "Update password"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg auth-submit"
+              disabled={loading}
+            >
+              {loading ? "Saving…" : "Update password"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
