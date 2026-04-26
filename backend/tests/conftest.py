@@ -57,6 +57,7 @@ def app(engine, session):
     with (
         patch("backend.auth.routes.session", session),
         patch("backend.search.routes.session", session),
+        patch("backend.saved_searches.routes.session", session)
     ):
         yield application
 

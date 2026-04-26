@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import update, insert, select
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
@@ -12,7 +12,7 @@ from backend.db.models import (
     CouponStatus,
     Notification
 )
-from datetime import timedelta
+from backend.utils.email import send_email
 
 POINTS_PER_DOLLAR = 10
 FREE_STAY_THRESHOLD = 100000
@@ -103,7 +103,8 @@ def create_booking_reminders():
             tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date()
             
             # Find bookings that start tomorrow, are confirmed, and haven't had a notification created
-            # Join with User to check their preference (keep send_reminder_email toggle)
+            # Join with User to check their preference
+            # Use with_for_update(skip_locked=True) to prevent multiple workers from processing the same booking
             eligible_records = session.execute(
                 select(Booking, User)
                 .join(User, Booking.user == User.id)
@@ -113,6 +114,7 @@ def create_booking_reminders():
                     Booking.reminder_notification_created.is_(False),
                     User.send_reminder_email.is_(True)
                 )
+                .with_for_update(of=Booking, skip_locked=True)
             ).all()
 
             for booking, user in eligible_records:
@@ -137,7 +139,11 @@ def create_booking_reminders():
                         .values(reminder_notification_created=True)
                     )
                     session.flush()
-                except Exception as e:
+
+                    # Send Email Notification
+                    subject = "Upcoming Stay Reminder - LikeHome"
+                    send_email(user.email, subject, message)
+                except Exception as e: # pylint: disable=broad-exception-caught
                     print(f"Error creating notification for {user.email}: {e}")
                     
             session.commit()

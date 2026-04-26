@@ -1,12 +1,23 @@
+import hashlib
+import secrets
+from datetime import UTC, datetime, timedelta
+
 from flask import current_app, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from backend.auth import auth_bp
-from backend.auth.forms import validate_login, validate_registration
+from backend.auth.forms import (
+    validate_email,
+    validate_login,
+    validate_password,
+    validate_registration,
+)
+from backend.auth.password_utils import check_password, hash_password
 from backend.db.db_connection import session
-from backend.db.models import User, Notification
+from backend.db.models import Notification, PasswordResetToken, User
 from backend.extensions import bcrypt
+from backend.utils.email import send_email
 
 
 def _token_response(user):
@@ -21,6 +32,46 @@ def _token_response(user):
     }
 
 
+def _utcnow():
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _hash_reset_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _password_reset_message():
+    return (
+        "If an account exists for that email, we have sent password reset instructions."
+    )
+
+
+def _build_reset_link(token):
+    base = current_app.config.get("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+    return f"{base}/reset-password?token={token}"
+
+
+def _get_valid_reset_record(token):
+    now = _utcnow()
+    token_hash = _hash_reset_token(token)
+    reset_record = session.query(PasswordResetToken).filter_by(
+        token_hash=token_hash
+    ).first()
+
+    if (
+        reset_record is None
+        or reset_record.used_at is not None
+        or reset_record.expires_at < now
+    ):
+        return None
+
+    user = session.query(User).filter_by(id=reset_record.user_id).first()
+    if user is None:
+        return None
+
+    return reset_record
+
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
     data = request.get_json(silent=True)
@@ -33,7 +84,7 @@ def register():
 
     name = (data.get("name") or "").strip() or None
     email = data.get("email").lower()
-    hashed = bcrypt.generate_password_hash(data.get("password")).decode("utf-8")
+    hashed = hash_password(data.get("password"))
     user = User(name=name, email=email, password=hashed)
 
     try:
@@ -112,6 +163,112 @@ def google_login():
         session.commit()
 
     return jsonify(_token_response(user)), 200
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    err = validate_email(email)
+    if err:
+        return jsonify({"error": err}), 400
+
+    user = session.query(User).filter_by(email=email).first()
+    if user:
+        ttl_seconds = current_app.config.get("PASSWORD_RESET_TOKEN_TTL_SECONDS", 3600)
+        now = _utcnow()
+        token = secrets.token_urlsafe(32)
+        token_hash = _hash_reset_token(token)
+        expires_at = now + timedelta(seconds=ttl_seconds)
+
+        session.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        ).update({"used_at": now}, synchronize_session=False)
+        session.add(
+            PasswordResetToken(
+                user_id=user.id,
+                token_hash=token_hash,
+                expires_at=expires_at,
+            )
+        )
+        session.commit()
+
+        reset_link = _build_reset_link(token)
+        email_sent = send_email(
+            user.email,
+            "LikeHome password reset",
+            "\n".join(
+                [
+                    "We received a request to reset your LikeHome password.",
+                    "",
+                    "Open the link below to choose a new password:",
+                    reset_link,
+                    "",
+                    "This link expires in 1 hour.",
+                    "If you did not request this, you can safely ignore this email.",
+                ]
+            ),
+        )
+
+        payload = {"message": _password_reset_message()}
+        if current_app.testing or current_app.config.get("EXPOSE_RESET_TOKEN_IN_RESPONSE", False):
+            payload["reset_token"] = token
+            payload["reset_url"] = reset_link
+            payload["email_sent"] = bool(email_sent)
+        return jsonify(payload), 200
+
+    return jsonify({"message": _password_reset_message()}), 200
+
+
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    password = data.get("password")
+
+    if not token:
+        return jsonify({"error": "token is required"}), 400
+
+    err = validate_password(password)
+    if err:
+        return jsonify({"error": err}), 400
+
+    reset_record = _get_valid_reset_record(token)
+    if reset_record is None:
+        return jsonify({"error": "This reset link is invalid or has expired"}), 400
+
+    now = _utcnow()
+    user = session.query(User).filter_by(id=reset_record.user_id).first()
+    if check_password(password, user.password):
+        return jsonify({
+            "error": "Choose a new password that is different from your current password"
+        }), 400
+
+    user.password = hash_password(password)
+    reset_record.used_at = now
+    session.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.id != reset_record.id,
+    ).update({"used_at": now}, synchronize_session=False)
+    session.commit()
+
+    return jsonify({"message": "Password updated successfully"}), 200
+
+
+@auth_bp.route("/reset-password/validate", methods=["GET"])
+def validate_reset_password_token():
+    token = (request.args.get("token") or "").strip()
+
+    if not token:
+        return jsonify({"error": "token is required"}), 400
+
+    if _get_valid_reset_record(token) is None:
+        return jsonify({"error": "This reset link is invalid or has expired"}), 400
+
+    return jsonify({"message": "Reset link is valid"}), 200
 
 @auth_bp.route("/settings", methods=["GET"])
 @jwt_required()

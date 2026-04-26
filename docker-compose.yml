@@ -27,6 +27,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       # Werkzeug reloader watches for file changes
       FLASK_DEBUG: "1"
+    env_file:
+      - .env
     volumes:
       # Bind-mount source so Flask's reloader picks up changes without rebuild
       - ./backend:/app/backend

@@ -315,7 +315,7 @@ def _validate_reschedule_input(data):
 
 @reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
 @jwt_required()
-def reschedule_booking(booking_id):
+def reschedule_booking(booking_id): # pylint: disable=too-many-locals
     user_id = int(get_jwt_identity())
     data = request.get_json(silent=True)
     if not data:
