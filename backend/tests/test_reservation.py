@@ -4,7 +4,8 @@ from decimal import Decimal
 from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
 from backend.db.models import (
-    User, Hotel, HotelRoom, Booking, PointsTransaction, RoomType, Status,
+    Booking, CancellationPolicy, Hotel, HotelRoom, PointsTransaction,
+    RoomType, Status, User,
 )
 from backend.reservation.utils import (
     generate_booking_number,
@@ -40,6 +41,24 @@ def _make_room(session, hotel):
     session.add(r)
     session.flush()
     return r
+
+
+def _make_cancellation_policy(
+    session,
+    hotel,
+    deadline_hours=48,
+    fee_percent="0.00",
+    active=True,
+):
+    policy = CancellationPolicy(
+        hotel_id=hotel.id,
+        deadline_hours=deadline_hours,
+        fee_percent=Decimal(fee_percent),
+        active=active,
+    )
+    session.add(policy)
+    session.flush()
+    return policy
 
 
 def _make_typed_room(session, hotel, room_no, room_type):
@@ -669,3 +688,143 @@ class TestCancelReservationPolicy:
         updated_user = session.get(User, user.id)
         assert cancelled.status == Status.CANCELLED
         assert updated_user.points == 500
+    def test_cancellation_preview_uses_policy_fee_and_hours(
+        self, reservation_client, session
+        ):
+        headers = _auth_headers(reservation_client, "cancel-policy-preview@example.com")
+        user = session.query(User).filter_by(
+            email="cancel-policy-preview@example.com"
+        ).one()
+        hotel = _make_hotel(session)
+        _make_cancellation_policy(
+            session, hotel, deadline_hours=72, fee_percent="15.00"
+        )
+        room = _make_typed_room(session, hotel, 401, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            price="200.00",
+        )
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/cancellation-preview",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()["cancellation"]
+        assert payload["policy_hours"] == 72
+        assert payload["fee_percent"] == "15.00"
+        assert payload["fee_amount"] == "30.00"
+        assert payload["refund_amount"] == "170.00"
+
+    def test_confirmed_cancellation_applies_policy_fee(
+        self, reservation_client, session
+        ):
+        headers = _auth_headers(reservation_client, "cancel-policy-final@example.com")
+        user = session.query(User).filter_by(
+            email="cancel-policy-final@example.com"
+        ).one()
+        hotel = _make_hotel(session)
+        _make_cancellation_policy(
+            session, hotel, deadline_hours=72, fee_percent="20.00"
+        )
+        room = _make_typed_room(session, hotel, 402, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=8),
+            date.today() + timedelta(days=10),
+            price="250.00",
+        )
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["refund"]["fee_amount"] == "50.00"
+        assert payload["refund"]["amount"] == "200.00"
+
+    def test_confirmed_cancellation_writes_points_logs(
+        self, reservation_client, session
+        ):
+        headers = _auth_headers(reservation_client, "cancel-logs@example.com")
+        user = session.query(User).filter_by(email="cancel-logs@example.com").one()
+        user.points = 600
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 403, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
+            price="185.00",
+        )
+        session.add_all([
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=200,
+                log="Earned points for confirmation",
+            ),
+            PointsTransaction(
+                user_id=user.id,
+                booking_id=booking.id,
+                points=-150,
+                log="Redeemed points at checkout",
+            ),
+        ])
+        session.flush()
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+
+        session.expire_all()
+        logs = session.query(PointsTransaction).filter_by(booking_id=booking.id).all()
+        log_messages = [entry.log for entry in logs]
+        assert any("Reversed 200 earned points" in message for message in log_messages)
+        assert any("Restored 150 redeemed points" in message for message in log_messages)
+
+    def test_confirmed_cancellation_returns_email_sent_flag(
+        self, reservation_client, session
+        ):
+        headers = _auth_headers(reservation_client, "cancel-email-flag@example.com")
+        user = session.query(User).filter_by(
+            email="cancel-email-flag@example.com"
+        ).one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 404, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=10),
+            date.today() + timedelta(days=12),
+            price="185.00",
+        )
+
+        response = reservation_client.delete(
+            f"/reservations/{booking.id}",
+            json={"confirmed": True},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "email_sent" in payload
+        assert payload["email_sent"] is False
+        
