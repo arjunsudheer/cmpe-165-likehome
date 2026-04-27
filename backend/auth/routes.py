@@ -125,7 +125,8 @@ def login():
 def google_login():
     """Verify a Google ID token and return a JWT. Creates the user if new."""
     data = request.get_json(silent=True)
-    if not data:
+    # Treat an empty JSON object as a valid payload shape so field validation can run.
+    if data is None:
         return jsonify({"error": "Invalid JSON"}), 400
 
     credential = data.get("credential")

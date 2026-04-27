@@ -93,6 +93,89 @@ class TestRegistration:
         assert response.get_json() == {"error": "email_exists"}
 
 
+class TestGoogleLogin:
+    # These tests pin the backend contract used by the dedicated Google sign-in page.
+
+    def test_reject_missing_credential(self, client):
+        client.application.config["GOOGLE_CLIENT_ID"] = "test-google-client-id"
+
+        response = client.post("/auth/google", json={})
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "credential is required"}
+
+    def test_reject_when_google_oauth_is_not_configured(self, client):
+        client.application.config["GOOGLE_CLIENT_ID"] = ""
+
+        response = client.post("/auth/google", json={"credential": "fake-token"})
+
+        assert response.status_code == 501
+        assert response.get_json() == {
+            "error": "Google OAuth is not configured on this server"
+        }
+
+    def test_reject_invalid_google_token(self, client):
+        client.application.config["GOOGLE_CLIENT_ID"] = "test-google-client-id"
+
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            side_effect=ValueError("Token used too late"),
+        ):
+            response = client.post("/auth/google", json={"credential": "bad-token"})
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "error": "Invalid Google token: Token used too late"
+        }
+
+    def test_google_login_creates_new_user(self, client, session):
+        client.application.config["GOOGLE_CLIENT_ID"] = "test-google-client-id"
+
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value={
+                "email": "googleuser@example.com",
+                "name": "Google User",
+            },
+        ):
+            response = client.post("/auth/google", json={"credential": "valid-token"})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "access_token" in data
+        assert data["email"] == "googleuser@example.com"
+        assert data["name"] == "Google User"
+
+        user = session.query(User).filter_by(email="googleuser@example.com").one()
+        assert user.name == "Google User"
+        assert user.password
+
+    def test_google_login_reuses_existing_user(self, client, session):
+        client.application.config["GOOGLE_CLIENT_ID"] = "test-google-client-id"
+        existing_user = User(
+            name="Existing User",
+            email="existing-google@example.com",
+            password=hash_password("password123"),
+        )
+        session.add(existing_user)
+        session.commit()
+
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value={
+                "email": "existing-google@example.com",
+                "name": "Google Name That Should Not Replace Existing",
+            },
+        ):
+            response = client.post("/auth/google", json={"credential": "valid-token"})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["user_id"] == existing_user.id
+        assert data["email"] == "existing-google@example.com"
+        assert session.query(User).filter_by(email="existing-google@example.com").count() == 1
+
+
 class TestHotelSorting:
 
     def _seed_hotels(self, session):

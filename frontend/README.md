@@ -24,6 +24,19 @@ npm run dev
 
 The app will be available at `http://localhost:5173` by default.
 
+### Environment Variables
+
+For local Google sign-in, create `frontend/.env` from `frontend/.env.example` and set:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+```
+
+Notes:
+- This is only needed when you run the frontend manually with `npm run dev`.
+- If you use Docker Compose, the frontend gets the Google client ID from the root `.env`.
+- The backend still uses the root `.env`, not `frontend/.env`.
+
 
 
 # React + TypeScript + Vite
