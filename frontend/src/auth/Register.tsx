@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
+import GoogleAuthButton from "./GoogleAuthButton";
 import "./Auth.css";
 
 interface Errs { name?: string; email?: string; password?: string; }
@@ -69,23 +69,6 @@ export default function Register() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
-    if (!credentialResponse.credential) return;
-    setApiError("");
-    try {
-      const res = await fetch("/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setApiError(data.error || "Google sign-in failed."); return; }
-      handleSuccess(data);
-    } catch {
-      setApiError("Network error — please try again.");
-    }
-  };
-
   return (
     <div className="auth-page">
       <div className="auth-brand">
@@ -108,6 +91,9 @@ export default function Register() {
         <h2>Create Account</h2>
         <p className="auth-sub">
           Already have an account? <Link to="/login">Sign in</Link>
+          {" · "}
+          {/* Mirror the login screen so users can choose Google before creating a password. */}
+          <Link to="/google-login">Use Google sign-in</Link>
         </p>
 
         {apiError && <div className="alert alert-error">{apiError}</div>}
@@ -166,13 +152,7 @@ export default function Register() {
           <>
             <div className="auth-divider">or continue with</div>
             <div className="google-btn-wrapper">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setApiError("Google sign-in failed — please try again.")}
-                text="signup_with"
-                shape="rectangular"
-                width="320"
-              />
+              <GoogleAuthButton onError={setApiError} text="signup_with" />
             </div>
           </>
         )}

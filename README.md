@@ -5,6 +5,10 @@ This repository is dedicated to the LikeHome Project from the CMPE 165 class at 
 
 First, create your own ```.env``` file by referencing ```.env.example```. Place your ```.env``` file in the root directory of this project.
 
+Important for local setup:
+- The backend reads `DATABASE_URL` from the root `.env`.
+- The frontend only needs a separate `frontend/.env` if you want Google sign-in while running `npm run dev` manually.
+
 ### Docker Setup
 
 Refer to the following commands when using Docker.
@@ -36,6 +40,9 @@ cd backend
 # Install dependencies
 pip install -r requirements.txt
 
+# Make sure your local PostgreSQL server is running and that the database
+# from DATABASE_URL in the root .env already exists.
+#
 # Populate the database
 cd ../
 python -m backend.db.init_db
@@ -57,6 +64,13 @@ cd frontend
 
 # Install dependencies
 npm install
+```
+
+If you want Google sign-in while running the frontend manually, create `frontend/.env`
+from `frontend/.env.example` and set:
+
+```sh
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
 To start the frontend server, run the following command:

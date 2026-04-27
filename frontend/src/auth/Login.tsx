@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
 
@@ -16,8 +15,6 @@ export default function Login() {
   const [apiError, setApiError] = useState("");
   const [hint, setHint] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
   useEffect(() => {
     if (params.get("hint") === "exists") {
@@ -72,23 +69,6 @@ export default function Login() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
-    if (!credentialResponse.credential) return;
-    setApiError("");
-    try {
-      const res = await fetch("/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setApiError(data.error || "Google sign-in failed."); return; }
-      handleSuccess(data);
-    } catch {
-      setApiError("Network error — please try again.");
-    }
-  };
-
   return (
     <div className="auth-page">
       <div className="auth-brand">
@@ -111,6 +91,9 @@ export default function Login() {
         <h2>Sign In</h2>
         <p className="auth-sub">
           No account? <Link to="/register">Create one free</Link>
+          {" · "}
+          {/* Keep a direct route to the standalone Google auth screen. */}
+          <Link to="/google-login">Use Google sign-in</Link>
         </p>
 
         {hint && <div className="alert alert-info">{hint}</div>}
@@ -156,21 +139,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Only render Google button when a client ID is configured */}
-        {googleClientId && (
-          <>
-            <div className="auth-divider">or continue with</div>
-            <div className="google-btn-wrapper">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setApiError("Google sign-in failed — please try again.")}
-                text="signin_with"
-                shape="rectangular"
-                width="320"
-              />
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
