@@ -1,20 +1,16 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import GoogleAuthButton from "./GoogleAuthButton";
 import "./Auth.css";
 
 export default function GoogleLoginPage() {
   const [params] = useSearchParams();
   const [apiError, setApiError] = useState("");
-  const [hint, setHint] = useState("");
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
-
-  useEffect(() => {
-    // Preserve the same "account already exists" hint language as the email login flow.
-    if (params.get("hint") === "exists") {
-      setHint("Your account already exists. You can continue with the same Google account below.");
-    }
-  }, [params]);
+  // Derive the hint from the URL so the page stays in sync without an extra render.
+  const hint = params.get("hint") === "exists"
+    ? "Your account already exists. You can continue with the same Google account below."
+    : "";
 
   return (
     <div className="auth-page">
