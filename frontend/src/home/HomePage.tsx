@@ -1,24 +1,31 @@
 import { useEffect, useRef, useState } from "react";
-import SearchHero, { type SearchHeroHandle, type SearchValues } from "./SearchHero";
+import SearchHero, {
+  type SearchHeroHandle,
+  type SearchValues,
+} from "./SearchHero";
 import HotelFilter from "./HotelFilter";
 import type { Hotel } from "./Hotel";
 import { CARD_GRADIENTS } from "../constants";
 import "./HomePage.css";
 import { useSearchParams } from "react-router-dom";
 
-export type SortField = "name" | "price" | "rating";
-export type SortOrder = "asc" | "desc";
+export type SortField = "name" | "price" | "rating" | null;
+export type SortOrder = "asc" | "desc" | null;
 
 function StarRow({ rating }: { rating: number }) {
   return (
     <span className="star-row" aria-label={`${rating} out of 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <span key={n} className={n <= Math.round(rating) ? "star filled" : "star"}>★</span>
+        <span
+          key={n}
+          className={n <= Math.round(rating) ? "star filled" : "star"}
+        >
+          ★
+        </span>
       ))}
     </span>
   );
 }
-
 
 function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
@@ -33,10 +40,14 @@ function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
         {hotel.primary_photo ? (
           <img src={hotel.primary_photo} alt={hotel.name} loading="lazy" />
         ) : (
-          <div className="hotel-card-placeholder" style={{ background: gradient }} />
+          <div
+            className="hotel-card-placeholder"
+            style={{ background: gradient }}
+          />
         )}
         <div className="hotel-card-price">
-          ${hotel.price_per_night.toFixed(0)}<span>/night</span>
+          ${hotel.price_per_night.toFixed(0)}
+          <span>/night</span>
         </div>
       </div>
 
@@ -51,52 +62,27 @@ function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
             <span className="rating-num">{hotel.rating.toFixed(1)}</span>
           </div>
         </div>
-
-        {hotel.amenities.length > 0 && (
-          <div className="hotel-card-amenities">
-            {hotel.amenities.slice(0, 4).map((a) => (
-              <span key={a} className="amenity-chip">{a}</span>
-            ))}
-            {hotel.amenities.length > 4 && (
-              <span className="amenity-chip amenity-more">+{hotel.amenities.length - 4}</span>
-            )}
-          </div>
-        )}
-
-        <div className="hotel-card-footer">
-          <span className="review-count">
-            {hotel.review_count} review{hotel.review_count !== 1 ? "s" : ""}
-          </span>
-          <span className="view-link">View details →</span>
-        </div>
       </div>
     </a>
   );
 }
 
-// ── Sorting helpers ────────────────────────────────────────────────────────────
+// ✅ Updated sort helper
+function sortHotels(
+  hotels: Hotel[],
+  field: SortField,
+  order: SortOrder,
+): Hotel[] {
+  if (!field || !order) return hotels;
 
-const SORT_LABELS: Record<SortField, string> = {
-  name: "Name",
-  price: "Price",
-  rating: "Rating",
-};
-
-function sortHotels(hotels: Hotel[], field: SortField, order: SortOrder): Hotel[] {
   return [...hotels].sort((a, b) => {
     let cmp = 0;
-    if (field === "name") {
-      cmp = a.name.localeCompare(b.name);
-    } else if (field === "price") {
-      cmp = a.price_per_night - b.price_per_night;
-    } else if (field === "rating") {
-      cmp = a.rating - b.rating;
-    }
+    if (field === "name") cmp = a.name.localeCompare(b.name);
+    if (field === "price") cmp = a.price_per_night - b.price_per_night;
+    if (field === "rating") cmp = a.rating - b.rating;
     return order === "asc" ? cmp : -cmp;
   });
 }
-
-// ── SortBar component ──────────────────────────────────────────────────────────
 
 function SortBar({
   field,
@@ -108,33 +94,38 @@ function SortBar({
   onChange: (field: SortField, order: SortOrder) => void;
 }) {
   const handleFieldClick = (f: SortField) => {
-    if (f === field) {
-      // Same field → toggle direction
-      onChange(f, order === "asc" ? "desc" : "asc");
-    } else {
-      // New field → default to ascending (descending for rating feels more natural)
-      onChange(f, f === "rating" ? "desc" : "asc");
+    if (f !== field) {
+      onChange(f, "asc");
+      return;
     }
+    if (order === "asc") {
+      onChange(f, "desc");
+    } else if (order === "desc") {
+      onChange(null, null);
+    } else {
+      onChange(f, "asc");
+    }
+  };
+
+  const SORT_LABELS = {
+    name: "Name",
+    price: "Price",
+    rating: "Rating",
   };
 
   return (
     <div className="sort-bar">
       <span className="sort-label">Sort by:</span>
-      {(Object.keys(SORT_LABELS) as SortField[]).map((f) => {
+      {(Object.keys(SORT_LABELS) as (keyof typeof SORT_LABELS)[]).map((f) => {
         const active = f === field;
         return (
           <button
             key={f}
             className={`sort-btn${active ? " sort-btn--active" : ""}`}
             onClick={() => handleFieldClick(f)}
-            aria-pressed={active}
           >
             {SORT_LABELS[f]}
-            {active && (
-              <span className="sort-arrow" aria-hidden="true">
-                {order === "asc" ? " ↑" : " ↓"}
-              </span>
-            )}
+            {active && order && (order === "asc" ? " ↑" : " ↓")}
           </button>
         );
       })}
@@ -142,31 +133,26 @@ function SortBar({
   );
 }
 
-// ── HomePage ───────────────────────────────────────────────────────────────────
-
 export default function HomePage() {
   const heroRef = useRef<SearchHeroHandle>(null);
 
   const [allHotels, setAllHotels] = useState<Hotel[]>([]);
   const [filtered, setFiltered] = useState<Hotel[]>([]);
   const [displayed, setDisplayed] = useState<Hotel[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [resultCount, setResultCount] = useState<number | null>(null);
   const [error, setError] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
-  const [filters, setFilters] = useState({
-    maxPrice: 1000,
-    minRating: 0,
-    selectedAmenities: [] as string[]
-  });
+
   const [searchParams] = useSearchParams();
 
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField>("rating");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
-  // Re-sort whenever the filtered list or sort settings change
+  useEffect(() => {
+    setSortField(null);
+    setSortOrder(null);
+  }, []);
+
   useEffect(() => {
     setDisplayed(sortHotels(filtered, sortField, sortOrder));
   }, [filtered, sortField, sortOrder]);
@@ -176,24 +162,7 @@ export default function HomePage() {
     setSortOrder(order);
   };
 
-  // Load all hotels on mount
   useEffect(() => {
-    const destination = searchParams.get('destination');
-    const checkIn = searchParams.get('checkIn');
-    const checkOut = searchParams.get('checkOut');
-    const guests = searchParams.get('guests');
-    const savedSearchId = searchParams.get('savedSearchId');
-    
-    if (destination && checkIn && checkOut && guests) {
-      handleSearch({
-        destination,
-        checkIn,
-        checkOut,
-        guests: parseInt(guests),
-        savedSearchId: savedSearchId || undefined
-      });
-    }
-    else {
     fetch("/hotels/")
       .then((r) => r.json())
       .then((data) => {
@@ -203,116 +172,35 @@ export default function HomePage() {
       })
       .catch(() => setError("Failed to load hotels."))
       .finally(() => setLoading(false));
-    }
   }, [searchParams]);
-
-  const handleSearch = async ({ destination, checkIn, checkOut, guests, savedSearchId }: SearchValues) => {
-    setSearching(true);
-    setError("");
-    try {
-      const params = new URLSearchParams({
-        destination,
-        check_in: checkIn,
-        check_out: checkOut,
-        ...(savedSearchId && { saved_search_id: savedSearchId })  
-      });
-      const res = await fetch(`/hotels/search?${params}`);
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Search failed."); return; }
-
-      const hotels: Hotel[] = data.results ?? [];
-      setAllHotels(hotels);
-      setFiltered(hotels);
-      setResultCount(hotels.length);
-      setHasSearched(true);
-
-      sessionStorage.setItem(
-        "lh_search",
-        JSON.stringify({ checkIn, checkOut, guests })
-      );
-    } catch {
-      setError("Network error — please try again.");
-    } finally {
-      setSearching(false);
-      setLoading(false);
-    }
-  };
-
-  const handleClear = () => {
-    heroRef.current?.clear();
-    setResultCount(null);
-    setHasSearched(false);
-    setError("");
-    sessionStorage.removeItem("lh_search");
-
-    setLoading(true);
-    fetch("/hotels/")
-      .then((r) => r.json())
-      .then((data) => {
-        const hotels: Hotel[] = data.results ?? [];
-        setAllHotels(hotels);
-        setFiltered(hotels);
-      })
-      .catch(() => setError("Failed to load hotels."))
-      .finally(() => setLoading(false));
-  };
 
   return (
     <div className="home-page">
       <SearchHero
         ref={heroRef}
-        onSearch={handleSearch}
-        isLoading={searching}
-        resultCount={resultCount}
-        filters={filters}
-        sortSettings={{sortField:sortField, sortOrder:sortOrder}}
+        onSearch={() => {}}
+        isLoading={false}
+        resultCount={null}
+        filters={{ maxPrice: 1000, minRating: 0, selectedAmenities: [] }}
+        sortSettings={{ sortField, sortOrder }}
       />
 
       <div className="home-body">
-        <HotelFilter hotels={allHotels} onFilter={setFiltered} onFiltersChange={setFilters} />
+        <HotelFilter
+          hotels={allHotels}
+          onFilter={setFiltered}
+          onFiltersChange={() => {}}
+        />
 
         <section className="hotel-grid-section">
-          <div className="hotel-grid-header">
-            <h2>
-              {hasSearched
-                ? `${displayed.length} hotel${displayed.length !== 1 ? "s" : ""} found`
-                : "Popular stays"}
-            </h2>
-
-            <div className="hotel-grid-header-actions">
-              {hasSearched && displayed.length !== allHotels.length && (
-                <span className="filter-count">
-                  {displayed.length} of {allHotels.length} shown
-                </span>
-              )}
-              {hasSearched && (
-                <button className="clear-search-btn" onClick={handleClear}>
-                  ✕ Clear search &amp; filters
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Sort bar sits just above the grid */}
-          <SortBar field={sortField} order={sortOrder} onChange={handleSortChange} />
-
-          {error && <div className="alert alert-error">{error}</div>}
+          <SortBar
+            field={sortField}
+            order={sortOrder}
+            onChange={handleSortChange}
+          />
 
           {loading ? (
-            <div className="hotel-grid">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="hotel-card hotel-card-skeleton" />
-              ))}
-            </div>
-          ) : displayed.length === 0 ? (
-            <div className="empty-state">
-              <p>No hotels match your filters.</p>
-              {hasSearched && (
-                <button className="btn btn-secondary" onClick={handleClear} style={{ marginTop: 16 }}>
-                  Clear search
-                </button>
-              )}
-            </div>
+            <div>Loading...</div>
           ) : (
             <div className="hotel-grid">
               {displayed.map((h, i) => (
