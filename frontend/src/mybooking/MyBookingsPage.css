@@ -208,3 +208,21 @@ a.booking-hotel-name:hover { color: var(--c-primary); }
 @media (max-width: 560px) {
   .booking-details-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+
+.booking-receipt-btn {
+  border-color: #6b7280;
+  color: #111827;
+  background: #f9fafb;
+}
+
+.booking-receipt-btn:hover {
+  background: #f3f4f6;
+  border-color: #374151;
+  color: #111827;
+}
+
+.booking-receipt-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
