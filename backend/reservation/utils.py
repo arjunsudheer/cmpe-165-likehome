@@ -132,3 +132,37 @@ def send_cancellation_email(
     ])
     
     return send_email(to_email, subject, body)
+
+
+def send_receipt_email(
+    to_email: str,
+    booking_number: str,
+    title: str,
+    hotel_name: str,
+    hotel_city: str,
+    room_type: str,
+    check_in: str,
+    check_out: str,
+    nights: int,
+    status: str,
+    total_price: Decimal,
+) -> bool:
+    fee = Decimal(str(total_price)).quantize(Decimal("0.01")) * Decimal("0.10")
+    subject = f"LikeHome booking receipt - {booking_number}"
+    body = "\n".join([
+        "Thank you for your booking! Here is your receipt.",
+        "",
+        f"Booking Number:       {booking_number}",
+        f"Trip Title:           {title}",
+        f"Hotel:                {hotel_name}",
+        f"City:                 {hotel_city}",
+        f"Room Type:            {room_type}",
+        f"Check-in:             {check_in}",
+        f"Check-out:            {check_out}",
+        f"Nights:               {nights}",
+        f"Status:               {status}",
+        f"Total Price:          ${Decimal(str(total_price)).quantize(Decimal('0.01'))}",
+        f"Cancellation Fee (10%): ${fee.quantize(Decimal('0.01'))}",
+    ])
+
+    return send_email(to_email, subject, body)

@@ -19,6 +19,7 @@ from backend.reservation.utils import (
     get_cancellation_details,
     generate_booking_number,
     send_cancellation_email,
+    send_receipt_email
 )
 
 POINTS_PER_DOLLAR = 10
@@ -582,4 +583,149 @@ def cancel_booking(booking_id):
                 "points_restored": int(redeemed_points),
             },
             "email_sent": email_sent,
+        }), 200
+
+
+@reservation_bp.route("/<int:booking_id>/email-receipt", methods=["POST"])
+@jwt_required()
+def email_receipt(booking_id):
+    user_id = int(get_jwt_identity())
+    with Session(engine) as db:
+        booking = db.execute(
+            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+        ).scalar_one_or_none()
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+
+        user = db.get(User, user_id)
+        if not user or not user.email:
+            return jsonify({"error": "No email address on file for this account"}), 400
+
+        room  = db.get(HotelRoom, booking.room)
+        hotel = db.get(Hotel, room.hotel) if room else None
+
+        n = (booking.end_date - booking.start_date).days
+        total = float(booking.total_price)
+        fee   = round(total * 0.10, 2)
+
+        receipt_rows = [
+            ("Booking Number", booking.booking_number),
+            ("Trip Title",     booking.title),
+            ("Hotel",          hotel.name  if hotel else "—"),
+            ("City",           hotel.city  if hotel else "—"),
+            ("Room Type",      room.room_type.value.capitalize() if room else "—"),
+            ("Check-in",       booking.start_date.isoformat()),
+            ("Check-out",      booking.end_date.isoformat()),
+            ("Nights",         str(n)),
+            ("Status",         booking.status.value.capitalize()),
+            ("Total Price",    f"${total:.2f}"),
+            ("Cancellation Fee (10%)", f"${fee:.2f}"),
+        ]
+
+        table_rows = "".join(
+            f"<tr><td class='label'>{k}</td><td class='value'>{v}</td></tr>"
+            for k, v in receipt_rows
+        )
+
+        issued_on = datetime.now().strftime("%B %d, %Y")
+        html_body = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      padding: 40px 16px;
+      color: #1a1a2e;
+    }}
+    .card {{
+      background: #fff;
+      max-width: 600px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }}
+    .card-header {{
+      background: #1a1a2e;
+      padding: 28px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+    .brand {{
+      font-size: 20px;
+      font-weight: 900;
+      color: #a78bfa;
+      letter-spacing: -0.5px;
+    }}
+    .receipt-label {{
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9ca3af;
+      text-align: right;
+    }}
+    .receipt-label strong {{
+      display: block;
+      font-size: 16px;
+      color: #fff;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-top: 2px;
+    }}
+    .card-body {{ padding: 28px 32px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    tr:nth-child(even) td {{ background: #f9fafb; }}
+    td {{ padding: 10px 14px; font-size: 14px; }}
+    td.label {{ font-weight: 600; color: #6b7280; width: 46%; }}
+    td.value {{ color: #111827; }}
+    .footer {{
+      padding: 20px 32px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <div class="brand">LuxuryHotels</div>
+      <div class="receipt-label">
+        Booking Receipt
+        <strong>{booking.booking_number}</strong>
+      </div>
+    </div>
+    <div class="card-body">
+      <table><tbody>{table_rows}</tbody></table>
+    </div>
+    <div class="footer">
+      Issued on {issued_on} &nbsp;·&nbsp; Thank you for staying with us.
+    </div>
+  </div>
+</body>
+</html>"""
+
+        try:
+            sent = send_receipt_email(
+                to_email=user.email,
+                booking_number=booking.booking_number,
+                html_body=html_body,
+            )
+        except Exception:  # pylint: disable=broad-except
+            return jsonify({"error": "Failed to send receipt email. Please try again."}), 500
+
+        if not sent:
+            return jsonify({"error": "Failed to send receipt email. Please try again."}), 500
+
+        return jsonify({
+            "message": "Receipt sent",
+            "booking_number": booking.booking_number,
+            "sent_to": user.email,
         }), 200
