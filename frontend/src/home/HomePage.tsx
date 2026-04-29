@@ -5,8 +5,8 @@ import type { Hotel } from "./Hotel";
 import { CARD_GRADIENTS } from "../constants";
 import "./HomePage.css";
 
-type SortField = "none" | "name" | "price" | "rating";
-type SortOrder = "asc" | "desc";
+export type SortField = "none" | "name" | "price" | "rating";
+export type SortOrder = "asc" | "desc";
 
 function StarRow({ rating }: { rating: number }) {
   return (

@@ -4,6 +4,8 @@ export interface Hotel {
   name: string;
   city: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   price_per_night: number;
   rating: number;
   review_count: number;
