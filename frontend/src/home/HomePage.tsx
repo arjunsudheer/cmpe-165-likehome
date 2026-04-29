@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import SearchHero, { type SearchHeroHandle, type SearchValues } from "./SearchHero";
 import HotelFilter from "./HotelFilter";
 import type { Hotel } from "./Hotel";
@@ -20,12 +20,31 @@ function StarRow({ rating }: { rating: number }) {
 
 function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
+  const search = useMemo(() => JSON.parse(sessionStorage.getItem("lh_search") || "{}"), []);
+  const checkIn = search.checkIn ?? "";
+  const checkOut = search.checkOut ?? "";
+  const guests = search.guests ?? "1";
+  const destIds = search.destIds ?? "";
+  const destination = search.destination ?? "";
+  const searchId = search.searchId ?? search.search_id ?? "";
+  const params = new URLSearchParams({
+        destination,
+        dest_ids: destIds,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests: String(guests),
+        search_id: searchId,
+      });
+  const handleClick = () => {
+    sessionStorage.setItem(`hotel_${hotel.id}`, JSON.stringify(hotel));
+  };
   return (
     <a
-      href={`/hotel/${hotel.id}`}
+      href={`/hotel/${hotel.id}?${params}`}
       target="_blank"
       rel="noopener noreferrer"
       className="hotel-card"
+      onClick={handleClick}
     >
       <div className="hotel-card-image">
         {hotel.primary_photo ? (
@@ -176,6 +195,10 @@ export default function HomePage() {
         const hotels: Hotel[] = data.results ?? [];
         setAllHotels(hotels);
         setFiltered(hotels);
+        sessionStorage.setItem(
+        "lh_search",
+        JSON.stringify({ checkIn: data.check_in, checkOut: data.check_out, guests: data.guests, searchId: data.search_id, destIds: data.dest_ids })
+        );
       })
       .catch(() => setError("Failed to load hotels."))
       .finally(() => setLoading(false));
@@ -189,6 +212,7 @@ export default function HomePage() {
         destination,
         check_in: checkIn,
         check_out: checkOut,
+        guests: String(guests)
       });
       const res = await fetch(`/hotels/search?${params}`);
       const data = await res.json();
@@ -202,7 +226,7 @@ export default function HomePage() {
 
       sessionStorage.setItem(
         "lh_search",
-        JSON.stringify({ checkIn, checkOut, guests })
+        JSON.stringify({ destination, checkIn, checkOut, guests, searchId: data.search_id, destIds: data.dest_ids })
       );
     } catch {
       setError("Network error — please try again.");
