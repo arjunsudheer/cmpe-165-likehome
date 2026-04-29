@@ -3,6 +3,7 @@ from datetime import date
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func, select, and_, or_
+import requests
 
 from backend.db.db_connection import session
 from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status, SavedSearch
@@ -11,6 +12,16 @@ from backend.search import search_bp
 
 def _f(val):
     return float(val) if val is not None else 0.0
+
+
+def _as_float(name: str, default: float | None = None):
+    raw = request.args.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def _hotel_summary(hotel):
@@ -140,6 +151,64 @@ def search_hotels():
         "results": [_hotel_summary(h) for h in hotels],
         "filters": filters or {}
     }), 200
+
+
+@search_bp.route("/geocode", methods=["GET"])
+def geocode_location():
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"error": "q is required"}), 400
+
+    try:
+        res = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"format": "json", "limit": 1, "q": query},
+            headers={"Accept": "application/json", "User-Agent": "likehome/1.0"},
+            timeout=8,
+        )
+        if res.status_code != 200:
+            return jsonify({"error": "Geocoding provider unavailable"}), 502
+        data = res.json()
+        if not data:
+            return jsonify({"result": None}), 200
+
+        lat = float(data[0]["lat"])
+        lon = float(data[0]["lon"])
+        return jsonify({"result": {"lat": lat, "lon": lon}}), 200
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return jsonify({"error": "Failed to geocode location"}), 502
+
+
+@search_bp.route("/nearby", methods=["GET"])
+def nearby_places():
+    lat = _as_float("lat")
+    lon = _as_float("lon")
+    radius = _as_float("radius", 1200.0)
+    if lat is None or lon is None:
+        return jsonify({"error": "lat and lon are required numeric query params"}), 400
+    if radius is None or radius <= 0:
+        return jsonify({"error": "radius must be a positive number"}), 400
+
+    overpass_query = f"""
+[out:json][timeout:12];
+(
+  node["amenity"="restaurant"](around:{int(radius)},{lat},{lon});
+  node["amenity"="fuel"](around:{int(radius)},{lat},{lon});
+);
+out body;"""
+    try:
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=overpass_query,
+            headers={"Accept": "application/json", "User-Agent": "likehome/1.0"},
+            timeout=12,
+        )
+        if res.status_code != 200:
+            return jsonify({"error": "Nearby provider unavailable"}), 502
+        data = res.json()
+        return jsonify({"elements": data.get("elements", [])}), 200
+    except (requests.RequestException, ValueError, TypeError):
+        return jsonify({"error": "Failed to load nearby places"}), 502
 
 
 @search_bp.route("/<int:hotel_id>", methods=["GET"])

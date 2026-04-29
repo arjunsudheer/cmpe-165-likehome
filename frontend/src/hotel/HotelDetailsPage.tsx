@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { AMENITY_ICONS, CARD_GRADIENTS } from "../constants";
 import HotelReviewForm from "./HotelReviewForm";
+import HotelLocationMap from "./HotelLocationMap";
 import "./HotelDetailsPage.css";
 
 interface HotelDetail {
@@ -177,6 +178,8 @@ function HotelDetailsContent({ hotelId }: { hotelId: string }) {
               </div>
             </section>
           )}
+
+          <HotelLocationMap hotel={hotel} />
 
           <section className="hdp-section hdp-section-full" id="reviews">
             <h2 className="hdp-section-title">
