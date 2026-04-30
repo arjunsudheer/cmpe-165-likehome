@@ -38,6 +38,8 @@ export default function Booking() {
   const auth = useAuth();
   const rescheduleBookingId = searchParams.get("rescheduleBookingId");
   const isReschedule = !!rescheduleBookingId;
+  const rebookBookingId = searchParams.get("rebookBookingId");
+  const isRebook = !!rebookBookingId;
   const [hotel, setHotel] = useState<HotelMeta | null>(null);
   const [step, setStep] = useState<Step>(1);
   const [checkIn, setCheckIn] = useState("");
@@ -87,6 +89,24 @@ export default function Booking() {
       })
       .catch(() => setStepError("Network error — is the backend running?"));
   }, [auth, isReschedule, rescheduleBookingId]);
+
+  useEffect(() => {
+    if (!isRebook || !rebookBookingId || !auth.isAuthenticated) return;
+    fetch(`/reservations/${rebookBookingId}/rebook`, { headers: auth.authHeader() })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) {
+          setStepError(d.error || `Could not load previous booking (${r.status}).`);
+          return;
+        }
+        const previous = d.previous_booking ?? {};
+        const rebook = d.rebook ?? {};
+        setTitle(previous.title || "");
+        setCheckIn(rebook.start_date || "");
+        setCheckOut(rebook.end_date || "");
+      })
+      .catch(() => setStepError("Network error — is the backend running?"));
+  }, [auth, isRebook, rebookBookingId]);
 
   // Step 1 → 2: check user conflicts, then load available rooms
   const goToStep2 = async (force = false) => {
