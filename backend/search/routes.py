@@ -93,11 +93,11 @@ def _mock_hotel_details_for_individual_page(hotel_id):
 
     rooms = []
     for room_number in range(1, rng.randint(6, 26)):
-            rooms.append({
-                "hotel":hotel_id,
-                "room":room_number,
-                "room_type":rng.choice([e.value for e in RoomType]),
-            })
+        rooms.append({
+            "hotel":hotel_id,
+            "room":room_number,
+            "room_type":rng.choice([e.value for e in RoomType]),
+        })
 
     querystring = {"languagecode":"en-us","hotel_ids":hotel_id}
     response = _api_response(hotel_photos_url, querystring)
@@ -116,7 +116,7 @@ def _mock_hotel_details_for_individual_page(hotel_id):
                 }
             )
 
-    _hotel_details_cache[hotel_id].rooms = rooms
+    _hotel_details_cache.setdefault(hotel_id, CachedHotel()).rooms = rooms
     _hotel_details_cache[hotel_id].photos = photos
     return {"rooms": rooms, "photos": photos}
 
@@ -136,10 +136,12 @@ def _hotel_summary(hotel):
         reviews = existing_hotel.reviews
 
     # load/refresh the hotel values
-    name = existing_hotel.name = hotel.get("hotel_name")
-    city = existing_hotel.city = hotel.get("city")
-    price_per_night = existing_hotel.price_per_night = _f(hotel.get('composite_price_breakdown').get('gross_amount_per_night').get('value'))
-    primary_photo = existing_hotel.primary_photo = hotel.get('main_photo_url').replace('square60', 'max1280x900')
+    name = existing_hotel.name = hotel.get("hotel_name") or existing_hotel.name
+    city = existing_hotel.city = hotel.get("city") or existing_hotel.city
+    breakdown = hotel.get('composite_price_breakdown') or {}
+    per_night = breakdown.get('gross_amount_per_night') or {}
+    price_per_night = existing_hotel.price_per_night = _f(per_night.get('value'))
+    primary_photo = existing_hotel.primary_photo = (hotel.get('main_photo_url') or '').replace('square60', 'max1280x900') or existing_hotel.primary_photo
     
     review_count = len(reviews)
     rating = sum(review["rating"] for review in reviews) / review_count if review_count != 0 else 0.0

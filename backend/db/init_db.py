@@ -8,6 +8,9 @@ from backend.db.models import (
     HotelRoom,
     Review,
     User,
+    Booking,
+    PointsTransaction,
+    Coupon,
 )
 from backend.db.schema_patches import (
     ensure_points_transactions_log_column,
