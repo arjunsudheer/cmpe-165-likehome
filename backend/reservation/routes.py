@@ -225,7 +225,21 @@ def create_booking():
     with Session(engine) as db:
         hotel = db.get(Hotel, hotel_id)
         if not hotel:
-            hotel = _persist_hotel_data(db, hotel_id)
+            cached = _hotel_details_cache[hotel_id]
+            if not cached:
+                return None
+            db.execute(insert(Hotel).values(id = hotel_id, name = cached.name, price_per_night = cached.price_per_night, city = cached.city, address = cached.address))
+            db.commit()
+            for amenity in cached.amenities:
+                db.execute(insert(HotelAmenity).values(hotel_id=hotel_id, name=amenity))
+            for room in cached.rooms:
+                db.execute(insert(HotelRoom).values(hotel=hotel_id, room=room["room"], room_type=room["room_type"]))
+            for photo in cached.photos:
+                db.execute(insert(HotelPhoto).values(hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]))
+            for review in cached.reviews:
+                db.execute(insert(Review).values(user=review["user"], hotel=hotel_id, title=review["title"], content=review["content"], rating=review["rating"]))
+            db.commit()
+            hotel = db.get(Hotel, hotel_id)
 
         db_room = db.execute(
             select(HotelRoom).where(
@@ -321,8 +335,8 @@ def _validate_reschedule_input(data):
     room_number = data.get("room")
     start_str = data.get("start_date")
     end_str = data.get("end_date")
-    if not all([title, room_number, start_str, end_str]):
-        return jsonify({"error": "title, room, start_date, end_date required"}), 400
+    if not all([title, hotel_id, room_number, start_str, end_str]):
+        return jsonify({"error": "title, hotel_id, room, start_date, end_date required"}), 400
 
     try:
         start_date = date.fromisoformat(start_str)
