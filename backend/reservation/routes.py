@@ -425,6 +425,22 @@ def confirm_booking(booking_id):
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
+
+        overlapping = db.execute(
+            select(Booking).where(
+                and_(
+                    Booking.user == user_id,
+                    Booking.id != booking_id,
+                    Booking.status == Status.CONFIRMED,
+                    Booking.start_date < booking.end_date,
+                    Booking.end_date > booking.start_date
+                )
+            )
+        ).scalars().all()
+
+        for old in overlapping:
+            old.refundable = False
+
         points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
         user = db.get(User, user_id)
         user.points += points_earned
