@@ -49,6 +49,9 @@ def _pricing_summary(price_difference):
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
+    fee_amount = details["fee_amount"]
+    refund_amount = Decimal("0.00") if not booking.refundable else details["refund_amount"]
+    fee_amount = booking.total_price if not booking.refundable else details["fee_amount"]
     return {
         "booking_id": booking.id,
         "booking_number": booking.booking_number,
@@ -57,9 +60,9 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
-        "fee_amount": str(details["fee_amount"]),
-        "refund_amount": str(details["refund_amount"]),
-        "points_to_restore": int(points_to_restore),
+        "fee_amount": str(fee_amount),
+        "refund_amount": str(refund_amount),
+        "points_to_restore": 0 if not booking.refundable else int(points_to_restore),
         "summary": {
             "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
             "refund_message": f'Refund amount: ${details["refund_amount"]}',
@@ -543,7 +546,7 @@ def cancel_booking(booking_id):
                     log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
                 ))
 
-        if redeemed_points > 0:
+        if redeemed_points > 0 and booking.refundable:
             user = db.get(User, user_id)
             if user:
                 user.points += redeemed_points

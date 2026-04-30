@@ -97,6 +97,7 @@ class Booking(Base):
     expires_at = Column(DateTime, nullable=True)
     reminder_email_sent = Column(Boolean, default=False)
     reminder_notification_created = Column(Boolean, default=False)
+    refundable = Column(Boolean, default=True)
 
 
 class Notification(Base):
