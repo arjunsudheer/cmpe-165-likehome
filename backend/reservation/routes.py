@@ -172,6 +172,7 @@ def list_bookings():
                 "total_price": str(b.total_price),
                 "status": b.status.value,
                 "created_at": b.created_at.isoformat() if b.created_at else None,
+                "refundable": b.refundable,
             })
         return jsonify(results), 200
 
@@ -258,6 +259,7 @@ def create_booking():
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat(),
+                "refundable": booking.refundable,
             },
         }), 201
 
@@ -291,6 +293,7 @@ def get_booking(booking_id):
             "total_price": str(booking.total_price),
             "status": booking.status.value,
             "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+            "refundable": booking.refundable,
         }), 200
 
 
@@ -396,6 +399,7 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+                "refundable": booking.refundable,
             },
             "pricing_summary": pricing_summary,
         }), 200
