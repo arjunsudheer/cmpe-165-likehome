@@ -9,7 +9,7 @@ from backend.search.api_params import hotel_list_url, headers, city_url, hotel_d
 from dataclasses import dataclass, field
 
 from backend.db.db_connection import session
-from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status, SavedSearch, RoomType
+from backend.db.models import Hotel, HotelAmenity, HotelPhoto, HotelRoom, Review, User, Booking, Status, SavedSearch, RoomType, CancellationPolicy
 from backend.search import search_bp
 
 @dataclass
@@ -23,6 +23,7 @@ class CachedHotel:
     reviews: list = field(default_factory=list)
     rooms: list = field(default_factory=list)
     photos: list = field(default_factory=list)
+    cancellation_policy: list = field(default_factory=list)
 
 _hotel_details_cache: dict[int, CachedHotel] = {}
 
@@ -55,7 +56,7 @@ def _mock_hotel_details_for_preview(hotel_id):
     amenity_set = rng.choice(amenity_sets)
 
     user_ids = session.execute(select(User.id)).scalars().all()
-    if len(user_ids) < 5:
+    if not user_ids:
         for index in range(1, 6):
             session.execute(
                 insert(User).values(
@@ -87,8 +88,8 @@ def _mock_hotel_details_for_preview(hotel_id):
 
 def _mock_hotel_details_for_individual_page(hotel_id):
     cached = _hotel_details_cache.get(hotel_id)
-    if cached and cached.rooms and cached.photos:
-        return {"rooms": cached.rooms, "photos": cached.photos}
+    if cached and cached.rooms and cached.photos and cached.cancellation_policy:
+        return {"rooms": cached.rooms, "photos": cached.photos, "cancellation_policy": cached.cancellation_policy}
     rng = random.Random(hotel_id)
 
     rooms = []
@@ -116,9 +117,12 @@ def _mock_hotel_details_for_individual_page(hotel_id):
                 }
             )
 
+    cancellation_policy = {"hotel_id": hotel_id, "deadline_hours": 48, "fee_percent": 0, "active": True}
+
     _hotel_details_cache.setdefault(hotel_id, CachedHotel()).rooms = rooms
     _hotel_details_cache[hotel_id].photos = photos
-    return {"rooms": rooms, "photos": photos}
+    _hotel_details_cache[hotel_id].cancellation_policy = cancellation_policy
+    return {"rooms": rooms, "photos": photos, "cancellation_policy": cancellation_policy}
 
 def _api_response(endpoint, params):
     return requests.get(url=f"{BASE_API_URL}{endpoint}", headers=headers, params=params).json()
@@ -158,47 +162,6 @@ def _hotel_summary(hotel):
         "amenities": amenities
     }
 
-def _get_sort_clause():
-    """
-    Supported query params:
-      ?sort=price&order=asc
-      ?sort=price&order=desc
-      ?sort=rating&order=asc
-      ?sort=rating&order=desc
-    Defaults to rating desc, then price asc.
-    """
-    sort_field = request.args.get("sort_field") or request.args.get("sort")
-    if not sort_field:
-        sort_field = "rating"
-    sort_field = sort_field.strip().lower()
-    
-    sort_order = request.args.get("sort_order") or request.args.get("order")
-    if not sort_order:
-        sort_order = "desc"
-    sort_order = sort_order.strip().lower()
-
-    valid_fields = {"price", "rating"}
-    valid_orders = {"asc", "desc"}
-
-    if sort_field not in valid_fields:
-        sort_field = "rating"
-    if sort_order not in valid_orders:
-        sort_order = "desc"
-
-    if sort_field == "price":
-        primary = (
-            Hotel.price_per_night.asc()
-            if sort_order == "asc"
-            else Hotel.price_per_night.desc()
-        )
-        secondary = Hotel.rating.desc()
-    else:
-        primary = Hotel.rating.asc() if sort_order == "asc" else Hotel.rating.desc()
-        secondary = Hotel.price_per_night.asc()
-
-    return [primary, secondary]
-
-
 def refresh_hotel_rating(hotel_id):
     avg = session.execute(
         select(func.avg(Review.rating)).where(Review.hotel == hotel_id)
@@ -228,7 +191,6 @@ def get_all_hotels():
         "room_qty": "1",
         "search_type": "city;hotel",
         "price_filter_currencycode": "USD",
-        "order_by": "popularity",
         "languagecode": "en-us",
     }
 
@@ -255,9 +217,10 @@ def search_hotels():
     if saved_search_id:
         saved_search = session.execute(select(SavedSearch).where(SavedSearch.id==saved_search_id)).scalar_one_or_none()
         destination = saved_search.destination
-        check_in_raw = date.isoformat(saved_search.check_in)
-        check_out_raw = date.isoformat(saved_search.check_out)
+        check_in_raw = saved_search.check_in.isoformat()
+        check_out_raw = saved_search.check_out.isoformat()
         filters = saved_search.filters
+        guests = str(saved_search.guests)
 
     if not destination:
         return jsonify({"error": "destination is required"}), 400
@@ -282,7 +245,7 @@ def search_hotels():
 
     destination_ids = [str(location.get("dest_id")) for location in destinations_response]
 
-    querystring = {"offset":"0","arrival_date":check_in_raw,"departure_date":check_out_raw,"guest_qty":guests,"dest_ids":destination_ids,"room_qty":"1","search_type":"city; hotel","price_filter_currencycode":"USD","order_by":"popularity","languagecode":"en-us"}
+    querystring = {"offset":"0","arrival_date":check_in_raw,"departure_date":check_out_raw,"guest_qty":guests,"dest_ids":destination_ids,"room_qty":"1","search_type":"city; hotel","price_filter_currencycode":"USD","languagecode":"en-us"}
 
     hotels_response = _api_response(hotel_list_url, querystring)
     hotels = [h for h in hotels_response.get("result", []) if h.get("type") == "property_card" and h.get("soldout") == 0]
@@ -468,14 +431,6 @@ def create_review(hotel_id):
 def edit_review(hotel_id, review_id):
     user_id = int(get_jwt_identity())
 
-    review = session.get(Review, review_id)
-    if not review:
-        return jsonify({"error": "Review not found"}), 404
-    if review.hotel != hotel_id:
-        return jsonify({"error": "Review does not belong to this hotel"}), 404
-    if review.user != user_id:
-        return jsonify({"error": "You can only edit your own reviews"}), 403
-
     data = request.get_json(silent=True) or {}
     rating = data.get("rating")
     title = data.get("title")
@@ -484,25 +439,55 @@ def edit_review(hotel_id, review_id):
     if rating is not None:
         if not isinstance(rating, int) or not 1 <= rating <= 5:
             return jsonify({"error": "rating must be integer 1–5"}), 400
-        review.rating = rating
     if title is not None:
         if len(title) > 20 or not title.strip():
             return jsonify({"error": "Title must be 20 characters or fewer"}), 400
-        review.title = title.strip()
     if content is not None:
         if len(content) > 255 or not content.strip():
             return jsonify({"error": "Content must be 255 characters or fewer"}), 400
-        review.content = content.strip()
 
-    session.commit()
-    new_rating = refresh_hotel_rating(hotel_id)
+    review = session.get(Review, review_id)
+    if review:
+        if review.hotel != hotel_id:
+            return jsonify({"error": "Review does not belong to this hotel"}), 404
+        if review.user != user_id:
+            return jsonify({"error": "You can only edit your own reviews"}), 403
+
+        if rating is not None:
+            review.rating = rating
+        if title is not None:
+            review.title = title.strip()
+        if content is not None:
+            review.content = content.strip()
+        session.commit()
+        new_rating = refresh_hotel_rating(hotel_id)
+
+    # update cache anyway regardless of whether review was in DB or not
+    cached = _hotel_details_cache.get(hotel_id)
+    if not cached:
+        return jsonify({"error": "Hotel not found"}), 404
+
+    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    if not cache_review:
+        return jsonify({"error": "Review not found"}), 404
+    if cache_review.get("user") != user_id:
+        return jsonify({"error": "You can only edit your own reviews"}), 403
+
+    if rating is not None:
+        cache_review["rating"] = rating
+    if title is not None:
+        cache_review["title"] = title.strip()
+    if content is not None:
+        cache_review["content"] = content.strip()
+
+    new_rating = sum(r["rating"] for r in cached.reviews) / len(cached.reviews)
     return jsonify({
         "message": "Review updated",
         "review": {
-            "id": review.id,
-            "title": review.title,
-            "content": review.content,
-            "rating": review.rating,
+            "id": review_id,
+            "title": cache_review["title"],
+            "content": cache_review["content"],
+            "rating": cache_review["rating"],
         },
         "hotel_rating": new_rating,
     }), 200
@@ -512,18 +497,30 @@ def edit_review(hotel_id, review_id):
 @jwt_required()
 def delete_review(hotel_id, review_id):
     user_id = int(get_jwt_identity())
-
     review = session.get(Review, review_id)
-    if not review:
+    if review:
+        if review.hotel != hotel_id:
+            return jsonify({"error": "Review does not belong to this hotel"}), 404
+        if review.user != user_id:
+            return jsonify({"error": "You can only delete your own reviews"}), 403
+
+        session.delete(review)
+        session.commit()
+        new_rating = refresh_hotel_rating(hotel_id)
+
+    # update cache anyway regardless of whether review was in DB or not
+    cached = _hotel_details_cache.get(hotel_id)
+    if not cached:
+        return jsonify({"error": "Hotel not found"}), 404
+
+    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    if not cache_review:
         return jsonify({"error": "Review not found"}), 404
-    if review.hotel != hotel_id:
-        return jsonify({"error": "Review does not belong to this hotel"}), 404
-    if review.user != user_id:
+    if cache_review.get("user") != user_id:
         return jsonify({"error": "You can only delete your own reviews"}), 403
 
-    session.delete(review)
-    session.commit()
-    new_rating = refresh_hotel_rating(hotel_id)
+    cached.reviews = [r for r in cached.reviews if r.get("id") != review_id]
+    new_rating = sum(r["rating"] for r in cached.reviews) / len(cached.reviews) if cached.reviews else 0.0
     return jsonify({
         "message": "Review deleted",
         "hotel_rating": new_rating,

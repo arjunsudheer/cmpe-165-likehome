@@ -81,7 +81,7 @@ export default function SettingsPage() {
   };
 
   const loadSavedSearch = (savedSearch: SavedSearch) => {
-    navigate(`/?destination=${encodeURIComponent(savedSearch.destination)}&checkIn=${savedSearch.checkIn}&checkOut=${savedSearch.checkOut}&guests=${savedSearch.guests}&savedSearchId=${savedSearch.id}`);
+    navigate(`/?destination=${encodeURIComponent(savedSearch.destination)}&check_in=${savedSearch.checkIn}&check_out=${savedSearch.checkOut}&guests=${savedSearch.guests}&saved_search_id=${savedSearch.id}`);
   };
 
   return (
