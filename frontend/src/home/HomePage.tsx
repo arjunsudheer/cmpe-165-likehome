@@ -189,19 +189,55 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    fetch("/hotels/")
-      .then((r) => r.json())
-      .then((data) => {
-        const hotels: Hotel[] = data.results ?? [];
-        setAllHotels(hotels);
-        setFiltered(hotels);
-        sessionStorage.setItem(
-        "lh_search",
-        JSON.stringify({ checkIn: data.check_in, checkOut: data.check_out, guests: data.guests, searchId: data.search_id, destIds: data.dest_ids })
-        );
-      })
-      .catch(() => setError("Failed to load hotels."))
-      .finally(() => setLoading(false));
+    const params = new URLSearchParams(window.location.search);
+    const savedSearchId = params.get("saved_search_id");
+
+    if (savedSearchId) {
+      setSearching(true);
+      fetch(`/hotels/search?saved_search_id=${savedSearchId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const hotels: Hotel[] = data.results ?? [];
+          setAllHotels(hotels);
+          setFiltered(hotels);
+          setResultCount(hotels.length);
+          setHasSearched(true);
+          sessionStorage.setItem(
+            "lh_search",
+            JSON.stringify({
+              destination: data.destination,
+              checkIn: data.check_in,
+              checkOut: data.check_out,
+              guests: data.guests,
+              searchId: data.search_id, 
+              destIds: data.dest_ids,
+            })
+          );
+        })
+        .catch(() => setError("Failed to load hotels."))
+        .finally(() => { setLoading(false); setSearching(false); });
+    } else {
+      // No search params — load default hotels
+      fetch("/hotels/")
+        .then((r) => r.json())
+        .then((data) => {
+          const hotels: Hotel[] = data.results ?? [];
+          setAllHotels(hotels);
+          setFiltered(hotels);
+          sessionStorage.setItem(
+            "lh_search",
+            JSON.stringify({
+              checkIn: data.check_in,
+              checkOut: data.check_out,
+              guests: data.guests,
+              searchId: data.search_id,
+              destIds: data.dest_ids,
+            })
+          );
+        })
+        .catch(() => setError("Failed to load hotels."))
+        .finally(() => setLoading(false));
+    }
   }, []);
 
   const handleSearch = async ({ destination, checkIn, checkOut, guests }: SearchValues) => {

@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.db_connection import engine
 from backend.db.models import (
-    Booking, Hotel, HotelRoom, PointsTransaction, Status, User, HotelAmenity, HotelPhoto, Review
+    Booking, CancellationPolicy, Hotel, HotelRoom, PointsTransaction, Status, User, HotelAmenity, HotelPhoto, Review
 )
 from backend.db.queries import get_overlapping_booking_dates, room_availability
 from backend.reservation import reservation_bp
@@ -238,6 +238,7 @@ def create_booking():
                 db.execute(insert(HotelPhoto).values(hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]))
             for review in cached.reviews:
                 db.execute(insert(Review).values(user=review["user"], hotel=hotel_id, title=review["title"], content=review["content"], rating=review["rating"]))
+            db.execute(insert(CancellationPolicy).values(hotel_id=hotel_id, deadline_hours=cached.cancellation_policy["deadline_hours"], fee_percent=cached.cancellation_policy["fee_percent"], active=cached.cancellation_policy["active"]))
             db.commit()
             hotel = db.get(Hotel, hotel_id)
 
@@ -349,7 +350,7 @@ def _validate_reschedule_input(data):
     if start_date < date.today():
         return None, jsonify({"error": "start_date cannot be in the past"}), 400
 
-    return (title, room_id, start_date, end_date), None, None
+    return (title, hotel_id, room_number, start_date, end_date), None, None
 
 
 @reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
@@ -364,7 +365,7 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
     if error_response:
         return error_response, error_code
 
-    title, room_id, start_date, end_date = parsed
+    title, hotel_id, room_number, start_date, end_date = parsed
 
     with Session(engine) as db:
         booking = db.execute(
