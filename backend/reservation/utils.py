@@ -90,19 +90,26 @@ def get_cancellation_details(
     now: datetime | None = None,
 ) -> dict:
     """
-    Calculate whether a booking can be cancelled and the refund summary
-    using the active hotel cancellation policy.
+    Calculate whether a booking can be cancelled and the refund summary.
+    Fee tiers: 20% within 7 days of check-in, $0 beyond 7 days.
+    Cancellation is blocked within 48 hours (policy_hours).
     """
     if now is None:
         now = datetime.now()
 
     policy = get_cancellation_policy(db, booking)
     policy_hours = policy["policy_hours"]
-    fee_percent = policy["fee_percent"]
 
     check_in_at = datetime.combine(booking.start_date, time.min)
     cutoff_at = check_in_at - timedelta(hours=policy_hours)
     total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+
+    hours_until_checkin = (check_in_at - now).total_seconds() / 3600
+    if hours_until_checkin < 7 * 24:
+        fee_percent = Decimal("20.00")
+    else:
+        fee_percent = Decimal("0.00")
+
     fee_amount = (total_price * fee_percent / Decimal("100")).quantize(Decimal("0.01"))
     refund_amount = max(Decimal("0.00"), total_price - fee_amount)
 

@@ -549,8 +549,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
@@ -593,8 +593,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="210.00",
         )
 
@@ -650,8 +650,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=6),
-            date.today() + timedelta(days=8),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
@@ -704,8 +704,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
+            date.today() + timedelta(days=5),
             date.today() + timedelta(days=7),
-            date.today() + timedelta(days=9),
             price="200.00",
         )
 
@@ -716,10 +716,11 @@ class TestCancelReservationPolicy:
 
         assert response.status_code == 200
         payload = response.get_json()["cancellation"]
+        # DB policy controls the blocked window (72h); fee tier overrides fee_percent
         assert payload["policy_hours"] == 72
-        assert payload["fee_percent"] == "15.00"
-        assert payload["fee_amount"] == "30.00"
-        assert payload["refund_amount"] == "170.00"
+        assert payload["fee_percent"] == "20.00"
+        assert payload["fee_amount"] == "40.00"
+        assert payload["refund_amount"] == "160.00"
 
     def test_confirmed_cancellation_applies_policy_fee(
         self, reservation_client, session
@@ -737,8 +738,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=8),
-            date.today() + timedelta(days=10),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="250.00",
         )
 
@@ -750,8 +751,9 @@ class TestCancelReservationPolicy:
 
         assert response.status_code == 200
         payload = response.get_json()
-        assert payload["refund"]["fee_amount"] == "50.00"
-        assert payload["refund"]["amount"] == "200.00"
+        # >7 days out → $0 fee tier regardless of DB policy fee_percent
+        assert payload["refund"]["fee_amount"] == "0.00"
+        assert payload["refund"]["amount"] == "250.00"
 
     def test_confirmed_cancellation_writes_points_logs(
         self, reservation_client, session

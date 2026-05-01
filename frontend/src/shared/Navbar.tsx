@@ -123,6 +123,12 @@ export default function Navbar() {
                 My Bookings
               </NavLink>
               <NavLink
+                to="/favorites"
+                className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+              >
+                Saved
+              </NavLink>
+              <NavLink
                 to="/settings"
                 className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
               >
