@@ -21,6 +21,12 @@ interface RoomOption {
 
 interface ConflictRow { booking_id: number; hotel_name: string | null; start_date: string; end_date: string; }
 
+interface PreviousBookingInfo {
+  hotel_name: string;
+  room: number;
+  room_type: string;
+}
+
 function calcNights(ci: string, co: string) {
   if (!ci || !co) return 0;
   const n = Math.floor((new Date(co).getTime() - new Date(ci).getTime()) / 86400000);
@@ -54,12 +60,19 @@ export default function Booking() {
   const [creating, setCreating] = useState(false);
   const [originalCheckIn, setOriginalCheckIn] = useState("");
   const [originalCheckOut, setOriginalCheckOut] = useState("");
+  const [previousBooking, setPreviousBooking] = useState<PreviousBookingInfo | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
   const nights = useMemo(() => calcNights(checkIn, checkOut), [checkIn, checkOut]);
   const canAdvance1 = title.trim() && checkIn && checkOut && nights > 0 && guests >= 1 && guests <= 8;
   const selectedOpt = roomOptions.find((o) => o.type === selectedType) ?? null;
   const total = selectedOpt ? selectedOpt.price * nights : 0;
+  const originalRoomAvailable = useMemo(() => {
+    if (!previousBooking || roomOptions.length === 0) return null;
+    return roomOptions.some((o) =>
+      o.rooms.some((r) => r.room === previousBooking.room),
+    );
+  }, [previousBooking, roomOptions]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
@@ -104,6 +117,13 @@ export default function Booking() {
         setTitle(previous.title || "");
         setCheckIn(rebook.start_date || "");
         setCheckOut(rebook.end_date || "");
+        if (previous.room != null && previous.room_type) {
+          setPreviousBooking({
+            hotel_name: previous.hotel_name ?? "",
+            room: previous.room,
+            room_type: previous.room_type,
+          });
+        }
       })
       .catch(() => setStepError("Network error — is the backend running?"));
   }, [auth, isRebook, rebookBookingId]);
@@ -163,6 +183,11 @@ export default function Booking() {
       }
 
       setRoomOptions(opts);
+      // For rebook: pre-select the original room type if it's still available.
+      if (isRebook && previousBooking) {
+        const match = opts.find((o) => o.type === previousBooking.room_type);
+        if (match) setSelectedType(match.type);
+      }
       setStep(2);
     } catch {
       setStepError("Network error — please try again.");
@@ -230,6 +255,17 @@ export default function Booking() {
             <>
               <h2>Select dates</h2>
 
+              {isRebook && previousBooking && (
+                <div className="rebook-banner">
+                  <strong>Rebooking from previous trip</strong>
+                  <span>
+                    Original room: #{previousBooking.room} ·{" "}
+                    {ROOM_LABELS[previousBooking.room_type] ??
+                      previousBooking.room_type}
+                  </span>
+                </div>
+              )}
+
               <div className="booking-grid">
                 <div className="form-group" style={{ gridColumn: "1/-1" }}>
                   <label className="form-label">Trip name</label>
@@ -269,20 +305,56 @@ export default function Booking() {
           {step === 2 && (
             <>
               <h2>Choose a room</h2>
+
+              {isRebook && previousBooking && originalRoomAvailable === false && (
+                <div className="rebook-banner rebook-banner-warning">
+                  <strong>Original room unavailable</strong>
+                  <span>
+                    Room #{previousBooking.room} (
+                    {ROOM_LABELS[previousBooking.room_type] ??
+                      previousBooking.room_type}
+                    ) is taken for these dates. Pick an alternative below.
+                  </span>
+                </div>
+              )}
+              {isRebook && previousBooking && originalRoomAvailable === true && (
+                <div className="rebook-banner">
+                  <strong>Your original room is available</strong>
+                  <span>
+                    {ROOM_LABELS[previousBooking.room_type] ??
+                      previousBooking.room_type}{" "}
+                    is selected by default — change it below if you'd like.
+                  </span>
+                </div>
+              )}
+
               <div className="room-grid">
-                {roomOptions.map((opt) => (
-                  <button
-                    key={opt.type}
-                    className={`room-card${opt.type === selectedType ? " active" : ""}`}
-                    onClick={() => setSelectedType(opt.type)}
-                  >
-                    <div className="room-card-top">
-                      <span className="room-name">{opt.label}</span>
-                      <span className="room-price">${opt.price.toFixed(0)}/night</span>
-                    </div>
-                    <span className="room-avail">{opt.count} available</span>
-                  </button>
-                ))}
+                {roomOptions.map((opt) => {
+                  const isOriginalType =
+                    isRebook &&
+                    previousBooking &&
+                    opt.type === previousBooking.room_type;
+                  return (
+                    <button
+                      key={opt.type}
+                      className={`room-card${opt.type === selectedType ? " active" : ""}${isOriginalType ? " room-card-original" : ""}`}
+                      onClick={() => setSelectedType(opt.type)}
+                    >
+                      <div className="room-card-top">
+                        <span className="room-name">
+                          {opt.label}
+                          {isOriginalType && (
+                            <span className="room-original-tag">
+                              · your previous pick
+                            </span>
+                          )}
+                        </span>
+                        <span className="room-price">${opt.price.toFixed(0)}/night</span>
+                      </div>
+                      <span className="room-avail">{opt.count} available</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {selectedOpt && (
