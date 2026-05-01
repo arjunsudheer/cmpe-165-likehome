@@ -331,6 +331,10 @@ def get_hotel_details(hotel_id):
     if hotel_id not in _hotel_details_cache:
         _hotel_details_cache[hotel_id] = CachedHotel()
     hotel =  _hotel_details_cache[hotel_id]
+    if not hotel.reviews or not hotel.amenities:
+        result = _mock_hotel_details_for_preview(hotel_id)
+        hotel.amenities = result.get('amenities')
+        hotel.reviews = result.get('reviews')
     if not hotel.rooms or not hotel.photos:
         result = _mock_hotel_details_for_individual_page(hotel_id)
         hotel.rooms = result.get('rooms')
@@ -340,6 +344,11 @@ def get_hotel_details(hotel_id):
     
     querystring = {"dest_ids": dest_ids, "hotel_id":hotel_id,"search_id":search_id,"departure_date":check_out_raw,"arrival_date":check_in_raw,"rec_guest_qty":guests,"rec_room_qty":"1","languagecode":"en-us","currency_code":"USD"}
     response = _api_response(hotel_details_url, querystring)
+    hotel.name = response[0].get('hotel_name') or hotel.name
+    hotel.city = response[0].get('city') or hotel.city
+    breakdown = response[0].get('composite_price_breakdown') or {}
+    per_night = breakdown.get('gross_amount_per_night') if breakdown else {}
+    hotel.price_per_night = _f(per_night.get('value')) if per_night else hotel.price_per_night
     hotel.address = response[0].get('address') if response else None
 
     # Group rooms by type for display
