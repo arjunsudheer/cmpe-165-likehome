@@ -476,7 +476,7 @@ def edit_review(hotel_id, review_id):
     if not cached:
         return jsonify({"error": "Hotel not found"}), 404
 
-    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    cache_review = next((r for r in cached.reviews if r.get("hotel") == hotel_id and r.get("user") == user_id), None)
     if not cache_review:
         return jsonify({"error": "Review not found"}), 404
     if cache_review.get("user") != user_id:
@@ -522,7 +522,7 @@ def delete_review(hotel_id, review_id):
     if not cached:
         return jsonify({"error": "Hotel not found"}), 404
 
-    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    cache_review = next((r for r in cached.reviews if r.get("hotel") == hotel_id and r.get("user") == user_id), None)
     if not cache_review:
         return jsonify({"error": "Review not found"}), 404
     if cache_review.get("user") != user_id:
