@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from decimal import Decimal
 
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -325,6 +326,10 @@ def reschedule_booking(booking_id):
         if booking.status in (Status.CANCELLED, Status.COMPLETED):
             return jsonify({"error": "Booking cannot be rescheduled"}), 400
 
+        checkin_dt = datetime.combine(booking.start_date, datetime.min.time())
+        if (checkin_dt - datetime.now()).total_seconds() / 3600 < 48:
+            return jsonify({"error": "Cannot reschedule within 48 hours of check-in"}), 400
+
         room = db.execute(
             select(HotelRoom).where(HotelRoom.id == room_id).with_for_update()
         ).scalar_one_or_none()
@@ -456,7 +461,21 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
+        earned_points = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        user = db.get(User, user_id)
+        if earned_points > 0 and user and user.points < earned_points:
+            total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+            details["fee_amount"] = total_price
+            details["refund_amount"] = Decimal("0.00")
+            details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -496,7 +515,21 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
+        earned = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        user = db.get(User, user_id)
+        if earned > 0 and user and user.points < earned:
+            total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+            details["fee_amount"] = total_price
+            details["refund_amount"] = Decimal("0.00")
+            details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -511,36 +544,23 @@ def cancel_booking(booking_id):
             }), 200
 
         # Reverse any points earned when this booking was confirmed
-        earned = db.execute(
-            select(func.sum(PointsTransaction.points)).where(
-                and_(
-                    PointsTransaction.booking_id == booking_id,
-                    PointsTransaction.points > 0,
-                )
-            )
-        ).scalar() or 0
+        if earned > 0 and user:
+            user.points = max(0, user.points - earned)
+            db.add(PointsTransaction(
+                user_id=user_id,
+                booking_id=booking_id,
+                points=-earned,
+                log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
+            ))
 
-        if earned > 0:
-            user = db.get(User, user_id)
-            if user:
-                user.points = max(0, user.points - earned)
-                db.add(PointsTransaction(
-                    user_id=user_id,
-                    booking_id=booking_id,
-                    points=-earned,
-                    log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
-                ))
-
-        if redeemed_points > 0:
-            user = db.get(User, user_id)
-            if user:
-                user.points += redeemed_points
-                db.add(PointsTransaction(
-                    user_id=user_id,
-                    booking_id=booking_id,
-                    points=redeemed_points,
-                    log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
-                ))
+        if redeemed_points > 0 and user:
+            user.points += redeemed_points
+            db.add(PointsTransaction(
+                user_id=user_id,
+                booking_id=booking_id,
+                points=redeemed_points,
+                log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
+            ))
 
         booking.status = Status.CANCELLED
         try:

@@ -530,8 +530,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
@@ -574,8 +574,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="210.00",
         )
 
@@ -631,8 +631,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=6),
-            date.today() + timedelta(days=8),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
