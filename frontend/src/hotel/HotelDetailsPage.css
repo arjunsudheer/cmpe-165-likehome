@@ -267,6 +267,104 @@
 .hdp-review-user { font-size: 12px; color: var(--c-text-light); white-space: nowrap; }
 .hdp-review-content { font-size: 13px; color: var(--c-text-muted); line-height: 1.5; }
 
+/* Map on hotel details page */
+.hdp-map-container {
+  width: 100%;
+  height: 320px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.hdp-map-marker-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.hdp-map-marker-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(13, 31, 60, 0.25);
+}
+
+.hdp-map-status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--c-text-muted);
+}
+
+.hdp-map-error {
+  color: var(--c-danger);
+}
+
+.hdp-map-nearby-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.hdp-map-nearby-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--c-text);
+}
+
+.hdp-map-nearby-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.hdp-map-nearby-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.hdp-map-popup-card {
+  min-width: 220px;
+}
+
+.hdp-map-popup-title {
+  display: block;
+  font-size: 14px;
+  color: var(--c-text);
+}
+
+.hdp-map-popup-location {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.hdp-map-popup-meta {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--c-text);
+}
+
+.hdp-map-popup-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hdp-map-popup-actions a {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-primary);
+  text-decoration: none;
+}
+
+.hdp-map-popup-actions a:hover {
+  text-decoration: underline;
+}
+
 /* Sticky reserve bottom bar */
 .hdp-sticky-bar {
   position: fixed;
@@ -307,4 +405,5 @@
   .hdp-reserve-block { text-align: left; width: 100%; }
   .hdp-grid { grid-template-columns: 1fr; }
   .hdp-body { padding: 24px 16px 80px; }
+  .hdp-map-nearby-grid { grid-template-columns: 1fr; }
 }

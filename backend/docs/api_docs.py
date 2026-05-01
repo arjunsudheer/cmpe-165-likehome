@@ -40,7 +40,7 @@ class ErrorResponseSchema(ma.Schema):
 
 
 class GoogleLoginRequestSchema(ma.Schema):
-    token = ma.fields.String(required=True, metadata={"example": "google-oauth2-id-token..."})
+    credential = ma.fields.String(required=True, metadata={"example": "google-oauth2-id-token..."})
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ class Login(MethodView):
         """
         return {"message": "Not implemented"}, 501
 
-@auth_bp.route("/google-login")
+@auth_bp.route("/google")
 class GoogleLogin(MethodView):
     @auth_bp.arguments(GoogleLoginRequestSchema)
     @auth_bp.response(200, TokenResponseSchema)

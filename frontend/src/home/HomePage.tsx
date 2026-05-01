@@ -5,8 +5,8 @@ import type { Hotel } from "./Hotel";
 import { CARD_GRADIENTS } from "../constants";
 import "./HomePage.css";
 
-type SortField = "name" | "price" | "rating";
-type SortOrder = "asc" | "desc";
+export type SortField = "none" | "name" | "price" | "rating";
+export type SortOrder = "asc" | "desc";
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -17,7 +17,6 @@ function StarRow({ rating }: { rating: number }) {
     </span>
   );
 }
-
 
 function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
@@ -73,15 +72,15 @@ function HotelCard({ hotel, index }: { hotel: Hotel; index: number }) {
   );
 }
 
-// ── Sorting helpers ────────────────────────────────────────────────────────────
-
-const SORT_LABELS: Record<SortField, string> = {
+const SORT_LABELS: Record<Exclude<SortField, "none">, string> = {
   name: "Name",
   price: "Price",
   rating: "Rating",
 };
 
 function sortHotels(hotels: Hotel[], field: SortField, order: SortOrder): Hotel[] {
+  // No sort applied — return hotels in original order
+  if (field === "none") return [...hotels];
   return [...hotels].sort((a, b) => {
     let cmp = 0;
     if (field === "name") {
@@ -95,8 +94,6 @@ function sortHotels(hotels: Hotel[], field: SortField, order: SortOrder): Hotel[
   });
 }
 
-// ── SortBar component ──────────────────────────────────────────────────────────
-
 function SortBar({
   field,
   order,
@@ -106,9 +103,9 @@ function SortBar({
   order: SortOrder;
   onChange: (field: SortField, order: SortOrder) => void;
 }) {
-  const handleFieldClick = (f: SortField) => {
+  const handleFieldClick = (f: Exclude<SortField, "none">) => {
     if (f === field) {
-      // Same field → toggle direction
+      // Same active field → toggle direction
       onChange(f, order === "asc" ? "desc" : "asc");
     } else {
       // New field → default to ascending (descending for rating feels more natural)
@@ -119,7 +116,7 @@ function SortBar({
   return (
     <div className="sort-bar">
       <span className="sort-label">Sort by:</span>
-      {(Object.keys(SORT_LABELS) as SortField[]).map((f) => {
+      {(Object.keys(SORT_LABELS) as Exclude<SortField, "none">[]).map((f) => {
         const active = f === field;
         return (
           <button
@@ -141,8 +138,6 @@ function SortBar({
   );
 }
 
-// ── HomePage ───────────────────────────────────────────────────────────────────
-
 export default function HomePage() {
   const heroRef = useRef<SearchHeroHandle>(null);
 
@@ -155,11 +150,16 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField>("rating");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [filters, setFilters] = useState({
+    maxPrice: 1000,
+    minRating: 0,
+    selectedAmenities: [] as string[],
+  });
 
-  // Re-sort whenever the filtered list or sort settings change
+  // Default to "none" so no sort is applied on load/refresh
+  const [sortField, setSortField] = useState<SortField>("none");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
   useEffect(() => {
     setDisplayed(sortHotels(filtered, sortField, sortOrder));
   }, [filtered, sortField, sortOrder]);
@@ -169,7 +169,6 @@ export default function HomePage() {
     setSortOrder(order);
   };
 
-  // Load all hotels on mount
   useEffect(() => {
     fetch("/hotels/")
       .then((r) => r.json())
@@ -217,6 +216,9 @@ export default function HomePage() {
     setResultCount(null);
     setHasSearched(false);
     setError("");
+    // Reset sort back to nothing on clear
+    setSortField("none");
+    setSortOrder("asc");
     sessionStorage.removeItem("lh_search");
 
     setLoading(true);
@@ -238,11 +240,12 @@ export default function HomePage() {
         onSearch={handleSearch}
         isLoading={searching}
         resultCount={resultCount}
+        filters={filters}
+        sortSettings={{ sortField: sortField, sortOrder: sortOrder }}
       />
 
       <div className="home-body">
-        <HotelFilter hotels={allHotels} onFilter={setFiltered} />
-
+        <HotelFilter hotels={allHotels} onFilter={setFiltered} onFiltersChange={setFilters} />
         <section className="hotel-grid-section">
           <div className="hotel-grid-header">
             <h2>
@@ -265,7 +268,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Sort bar sits just above the grid */}
           <SortBar field={sortField} order={sortOrder} onChange={handleSortChange} />
 
           {error && <div className="alert alert-error">{error}</div>}

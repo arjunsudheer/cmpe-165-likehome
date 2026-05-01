@@ -7,13 +7,10 @@ import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-import os
-import smtplib
-from email.message import EmailMessage
-
 from sqlalchemy import and_, select
 
 from backend.db.models import Booking, CancellationPolicy, HotelRoom, Status
+from backend.utils.email import send_email
 
 
 DEFAULT_CANCELLATION_WINDOW_HOURS = 48
@@ -133,34 +130,46 @@ def send_cancellation_email(
     fee_amount: Decimal,
     refund_amount: Decimal,
 ) -> bool:
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_port = os.environ.get("SMTP_PORT")
-    smtp_username = os.environ.get("SMTP_USERNAME")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
-    from_email = os.environ.get("SMTP_FROM_EMAIL", smtp_username or "noreply@likehome.local")
+    subject = f"LikeHome cancellation confirmation - {booking_number}"
+    body = "\n".join([
+        "Your reservation has been cancelled.",
+        f"Booking number: {booking_number}",
+        f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
+        f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
+    ])
+    
+    return send_email(to_email, subject, body)
 
-    if not smtp_host or not smtp_port or not to_email:
-        return False
 
-    message = EmailMessage()
-    message["Subject"] = f"LikeHome cancellation confirmation - {booking_number}"
-    message["From"] = from_email
-    message["To"] = to_email
-    message.set_content(
-        "\n".join([
-            "Your reservation has been cancelled.",
-            f"Booking number: {booking_number}",
-            f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
-            f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
-        ])
-    )
+def send_receipt_email(
+    to_email: str,
+    booking_number: str,
+    title: str,
+    hotel_name: str,
+    hotel_city: str,
+    room_type: str,
+    check_in: str,
+    check_out: str,
+    nights: int,
+    status: str,
+    total_price: Decimal,
+) -> bool:
+    fee = Decimal(str(total_price)).quantize(Decimal("0.01")) * Decimal("0.10")
+    subject = f"LikeHome booking receipt - {booking_number}"
+    body = "\n".join([
+        "Thank you for your booking! Here is your receipt.",
+        "",
+        f"Booking Number:       {booking_number}",
+        f"Trip Title:           {title}",
+        f"Hotel:                {hotel_name}",
+        f"City:                 {hotel_city}",
+        f"Room Type:            {room_type}",
+        f"Check-in:             {check_in}",
+        f"Check-out:            {check_out}",
+        f"Nights:               {nights}",
+        f"Status:               {status}",
+        f"Total Price:          ${Decimal(str(total_price)).quantize(Decimal('0.01'))}",
+        f"Cancellation Fee (10%): ${fee.quantize(Decimal('0.01'))}",
+    ])
 
-    try:
-        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
-            server.starttls()
-            if smtp_username and smtp_password:
-                server.login(smtp_username, smtp_password)
-            server.send_message(message)
-        return True
-    except Exception:
-        return False
+    return send_email(to_email, subject, body)
