@@ -68,14 +68,14 @@ def _mock_hotel_details_for_preview(hotel_id):
         session.commit()
 
     reviews = []
-    for review_offset in range(2):
+    for review_offset in range(rng.randint(1, 10)):
         user_id = rng.choice(user_ids)
         reviews.append({
                 "user":user_id,
                 "hotel":hotel_id,
                 "title":f"Guest review {review_offset + 1}",
                 "content":f"Comfortable stay at hotel {hotel_id}.",
-                "rating":4 if review_offset == 0 else 5,
+                "rating":rng.randint(1, 5)
             }
         )
 
