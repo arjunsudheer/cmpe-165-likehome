@@ -1,4 +1,4 @@
-from sqlalchemy import and_, exists, or_, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.db.db_connection import engine
@@ -70,3 +70,16 @@ def get_overlapping_booking_dates(user_id, start_date, end_date):
             )
         )
         return session.execute(stmt).all()
+
+
+def booking_points_redeemed_total(session, booking_id: int) -> int:
+    """Total points redeemed against this booking (absolute value), or 0 if none."""
+    raw = session.execute(
+        select(func.coalesce(func.sum(PointsTransaction.points), 0)).where(
+            and_(
+                PointsTransaction.booking_id == booking_id,
+                PointsTransaction.points < 0,
+            )
+        )
+    ).scalar()
+    return abs(int(raw or 0))

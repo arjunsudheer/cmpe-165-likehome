@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import update, insert, select
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
+from backend.db.queries import booking_points_redeemed_total
 from backend.db.models import (
     Booking,
     Status,
@@ -48,6 +49,8 @@ def complete_bookings_and_earn_points():
             )
 
             for booking in completed_bookings:
+                if booking_points_redeemed_total(session, booking.id) > 0:
+                    continue
                 points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
                 session.execute(
                     update(User)
