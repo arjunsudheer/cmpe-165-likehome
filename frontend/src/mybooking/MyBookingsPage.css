@@ -99,6 +99,15 @@ a.booking-hotel-name:hover { color: var(--c-primary); }
 .booking-cancel-btn { padding: 6px 14px; font-size: 13px; color: var(--c-danger); border-color: #fecaca; }
 .booking-cancel-btn:hover:not(:disabled) { background: #fef2f2; }
 
+.booking-rebook-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.booking-rebook-btn:disabled {
+  opacity: 0.6;
+}
+
 
 /* Cancel Modal */
 .cancel-overlay {

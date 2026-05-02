@@ -417,6 +417,7 @@ function BookingCard({
   const n = nights(b.start_date, b.end_date);
   const canCancel = b.status === "CONFIRMED" || b.status === "INPROGRESS";
   const canReschedule = b.status !== "CANCELLED";
+  const canRebook = b.status === "COMPLETED" || b.status === "CANCELLED";
 
   const emailLabel =
     emailStatus === "sending"
@@ -492,6 +493,22 @@ function BookingCard({
                 disabled
               >
                 Reschedule
+              </button>
+            ))}
+          {canRebook &&
+            (b.hotel_id ? (
+              <Link
+                className="btn btn-primary booking-rebook-btn"
+                to={`/booking/${b.hotel_id}?rebookBookingId=${b.id}`}
+              >
+                Rebook
+              </Link>
+            ) : (
+              <button
+                className="btn btn-primary booking-rebook-btn"
+                disabled
+              >
+                Rebook
               </button>
             ))}
           <button

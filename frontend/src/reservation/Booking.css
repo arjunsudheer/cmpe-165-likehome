@@ -108,6 +108,39 @@
 .room-price { font-size: 13px; font-weight: 800; color: var(--c-primary); }
 .room-avail { font-size: 12px; color: var(--c-text-muted); }
 
+.room-card-original {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+.room-original-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-primary);
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Rebook context banner */
+.rebook-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e40af;
+}
+.rebook-banner strong { font-size: 13px; font-weight: 800; }
+.rebook-banner span { font-size: 13px; }
+.rebook-banner-warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 /* Live price summary */
 .booking-summary {
   padding: 14px 16px;

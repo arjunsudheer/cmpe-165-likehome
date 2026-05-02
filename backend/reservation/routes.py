@@ -346,6 +346,131 @@ def get_booking(booking_id):
         }), 200
 
 
+# ── Rebook (populate previous booking ANDD availability check) ──────────────────
+
+@reservation_bp.route("/<int:booking_id>/rebook", methods=["GET"])
+@jwt_required()
+def rebook_booking(booking_id):
+    """
+    Return the user's previous booking details so the frontend can pre-populate
+    a new booking form, and check whether the original room is still available
+    for the requested dates.
+
+    Query params (optional):
+      - start_date / end_date (YYYY-MM-DD): dates to check availability for.
+        If omitted, the original trip length starting today is used.
+    """
+    user_id = int(get_jwt_identity())
+    start_str = request.args.get("start_date")
+    end_str = request.args.get("end_date")
+
+    with Session(engine) as db:
+        booking = db.execute(
+            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+        ).scalar_one_or_none()
+        if not booking:
+            return jsonify({"error": "Booking not found"}), 404
+
+        room = db.get(HotelRoom, booking.room)
+        hotel = db.get(Hotel, room.hotel) if room else None
+        if not room or not hotel:
+            return jsonify({"error": "Original hotel or room is no longer available"}), 404
+
+        original_nights = (booking.end_date - booking.start_date).days or 1
+        previous_booking = {
+            "booking_id": booking.id,
+            "booking_number": booking.booking_number,
+            "title": booking.title,
+            "hotel_id": hotel.id,
+            "hotel_name": hotel.name,
+            "hotel_city": hotel.city,
+            "room": room.room,
+            "room_type": room.room_type.value,
+            "start_date": booking.start_date.isoformat(),
+            "end_date": booking.end_date.isoformat(),
+            "nights": original_nights,
+            "total_price": str(booking.total_price),
+            "status": booking.status.value,
+        }
+
+        if start_str or end_str:
+            if not (start_str and end_str):
+                return jsonify({
+                    "error": "start_date and end_date must be provided together",
+                    "previous_booking": previous_booking,
+                }), 400
+            try:
+                start_date = date.fromisoformat(start_str)
+                end_date = date.fromisoformat(end_str)
+            except (ValueError, TypeError):
+                return jsonify({
+                    "error": "Dates must be YYYY-MM-DD",
+                    "previous_booking": previous_booking,
+                }), 400
+            if end_date <= start_date:
+                return jsonify({
+                    "error": "end_date must be after start_date",
+                    "previous_booking": previous_booking,
+                }), 400
+            if start_date < date.today():
+                return jsonify({
+                    "error": "start_date cannot be in the past",
+                    "previous_booking": previous_booking,
+                }), 400
+        else:
+            start_date = date.today()
+            end_date = start_date + timedelta(days=original_nights)
+
+        conflicts = check_room_availability(db, room.id, start_date, end_date)
+        original_room_available = not conflicts
+
+        #alternative rooms come from the live hotel cache, filtered against
+        # any room numbers already booked at this hotel for the requested window.
+        alternative_rooms = []
+        cached = _hotel_details_cache.get(hotel.id)
+        if not original_room_available and cached and cached.rooms:
+            booked_room_numbers = set(db.execute(
+                select(HotelRoom.room)
+                .join(Booking, Booking.room == HotelRoom.id)
+                .where(
+                    HotelRoom.hotel == hotel.id,
+                    Booking.start_date < end_date,
+                    Booking.end_date > start_date,
+                    Booking.status.in_([Status.CONFIRMED, Status.INPROGRESS]),
+                )
+            ).scalars().all())
+            alternative_rooms = [
+                {"room": r["room"], "room_type": r["room_type"]}
+                for r in cached.rooms
+                if r["room"] not in booked_room_numbers and r["room"] != room.room
+            ]
+
+        estimated_total = calculate_total_price(
+            hotel.price_per_night, start_date, end_date
+        )
+
+        return jsonify({
+            "previous_booking": previous_booking,
+            "rebook": {
+                "hotel_id": hotel.id,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "nights": (end_date - start_date).days,
+                "estimated_total_price": str(estimated_total),
+                "original_room_available": original_room_available,
+                "alternative_rooms": alternative_rooms,
+                "conflicts": [
+                    {
+                        "booking_id": c.id,
+                        "start_date": c.start_date.isoformat(),
+                        "end_date": c.end_date.isoformat(),
+                    }
+                    for c in conflicts
+                ],
+            },
+        }), 200
+
+
 def _validate_reschedule_input(data):
     title = data.get("title")
     hotel_id = data.get("hotel_id")

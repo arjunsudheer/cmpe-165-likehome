@@ -852,4 +852,437 @@ class TestCancelReservationPolicy:
         payload = response.get_json()
         assert "email_sent" in payload
         assert payload["email_sent"] is False
-        
+
+
+# ── Rebook endpoint ──────────────────────────────────────────────────────────
+
+
+class TestRebookBooking:
+
+    def _setup_previous_booking(
+        self, client, session, email, *, days_ago_start=30, days_ago_end=27
+    ):
+        headers = _auth_headers(client, email)
+        user = session.query(User).filter_by(email=email).one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 201, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() - timedelta(days=days_ago_start),
+            date.today() - timedelta(days=days_ago_end),
+            price="300.00",
+        )
+        booking.status = Status.COMPLETED
+        session.flush()
+        return headers, user, hotel, room, booking
+
+    def _seed_cache(self, hotel_id, rooms):
+        from backend.search.routes import CachedHotel, _hotel_details_cache
+        cached = CachedHotel()
+        cached.rooms = rooms
+        _hotel_details_cache[hotel_id] = cached
+        return cached
+
+    def _clear_cache(self, hotel_id):
+        from backend.search.routes import _hotel_details_cache
+        _hotel_details_cache.pop(hotel_id, None)
+
+    def test_rebook_returns_previous_booking_details(
+        self, reservation_client, session
+    ):
+        headers, _, hotel, room, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-details@example.com"
+        )
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook", headers=headers
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        previous = payload["previous_booking"]
+        assert previous["booking_id"] == booking.id
+        assert previous["booking_number"] == booking.booking_number
+        assert previous["title"] == booking.title
+        assert previous["hotel_id"] == hotel.id
+        assert previous["hotel_name"] == hotel.name
+        assert previous["hotel_city"] == hotel.city
+        assert previous["room"] == room.room
+        assert previous["room_type"] == room.room_type.value
+        assert previous["nights"] == 3
+        assert previous["status"] == "COMPLETED"
+        assert payload["rebook"]["hotel_id"] == hotel.id
+
+    def test_rebook_defaults_to_original_trip_length(
+        self, reservation_client, session
+    ):
+        headers, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-default-dates@example.com"
+        )
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook", headers=headers
+        )
+
+        assert response.status_code == 200
+        rebook = response.get_json()["rebook"]
+        assert rebook["start_date"] == date.today().isoformat()
+        assert rebook["end_date"] == (
+            date.today() + timedelta(days=3)
+        ).isoformat()
+        assert rebook["nights"] == 3
+
+    def test_rebook_reports_room_available_for_open_dates(
+        self, reservation_client, session
+    ):
+        headers, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-available@example.com"
+        )
+
+        new_start = (date.today() + timedelta(days=60)).isoformat()
+        new_end = (date.today() + timedelta(days=63)).isoformat()
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook"
+            f"?start_date={new_start}&end_date={new_end}",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        rebook = response.get_json()["rebook"]
+        assert rebook["original_room_available"] is True
+        assert rebook["conflicts"] == []
+        assert rebook["alternative_rooms"] == []
+        assert Decimal(rebook["estimated_total_price"]) == Decimal("300.00")
+
+    def test_rebook_reports_conflict_with_cached_alternatives(
+        self, reservation_client, session
+    ):
+        headers, user, hotel, room, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-conflict@example.com"
+        )
+        new_start = date.today() + timedelta(days=90)
+        new_end = new_start + timedelta(days=3)
+        # Block the original room for the new dates
+        _make_booking(
+            session, user, room, new_start, new_end, price="300.00"
+        )
+        # Seed the hotel cache with two extra rooms (302 + 303) and the
+        # original (201). Only the unbooked extras should be returned.
+        self._seed_cache(hotel.id, [
+            {"room": 201, "room_type": "DOUBLE"},
+            {"room": 302, "room_type": "TRIPLE"},
+            {"room": 303, "room_type": "QUAD"},
+        ])
+        try:
+            response = reservation_client.get(
+                f"/reservations/{booking.id}/rebook"
+                f"?start_date={new_start.isoformat()}"
+                f"&end_date={new_end.isoformat()}",
+                headers=headers,
+            )
+        finally:
+            self._clear_cache(hotel.id)
+
+        assert response.status_code == 200
+        rebook = response.get_json()["rebook"]
+        assert rebook["original_room_available"] is False
+        assert len(rebook["conflicts"]) == 1
+        alt_numbers = {r["room"] for r in rebook["alternative_rooms"]}
+        assert alt_numbers == {302, 303}
+
+    def test_rebook_returns_empty_alternatives_when_cache_missing(
+        self, reservation_client, session
+    ):
+        headers, user, hotel, room, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-no-cache@example.com"
+        )
+        new_start = date.today() + timedelta(days=90)
+        new_end = new_start + timedelta(days=3)
+        _make_booking(
+            session, user, room, new_start, new_end, price="300.00"
+        )
+        self._clear_cache(hotel.id)
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook"
+            f"?start_date={new_start.isoformat()}"
+            f"&end_date={new_end.isoformat()}",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        rebook = response.get_json()["rebook"]
+        assert rebook["original_room_available"] is False
+        assert rebook["alternative_rooms"] == []
+
+    def test_rebook_rejects_past_start_date(
+        self, reservation_client, session
+    ):
+        headers, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-past@example.com"
+        )
+
+        past_start = (date.today() - timedelta(days=1)).isoformat()
+        past_end = (date.today() + timedelta(days=2)).isoformat()
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook"
+            f"?start_date={past_start}&end_date={past_end}",
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        payload = response.get_json()
+        assert "start_date cannot be in the past" in payload["error"]
+        assert payload["previous_booking"]["booking_id"] == booking.id
+
+    def test_rebook_rejects_invalid_date_range(
+        self, reservation_client, session
+    ):
+        headers, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-bad-range@example.com"
+        )
+
+        start = (date.today() + timedelta(days=10)).isoformat()
+        end = (date.today() + timedelta(days=10)).isoformat()
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook"
+            f"?start_date={start}&end_date={end}",
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        assert "end_date must be after start_date" in response.get_json()["error"]
+
+    def test_rebook_requires_both_dates_when_one_supplied(
+        self, reservation_client, session
+    ):
+        headers, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-partial@example.com"
+        )
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook"
+            f"?start_date={date.today().isoformat()}",
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        assert "must be provided together" in response.get_json()["error"]
+
+    def test_rebook_returns_404_for_other_users_booking(
+        self, reservation_client, session
+    ):
+        _, _, _, _, booking = self._setup_previous_booking(
+            reservation_client, session, "rebook-owner@example.com"
+        )
+        other_headers = _auth_headers(reservation_client, "rebook-other@example.com")
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/rebook", headers=other_headers
+        )
+
+        assert response.status_code == 404
+        assert response.get_json()["error"] == "Booking not found"
+
+    def test_rebook_requires_authentication(self, reservation_client):
+        response = reservation_client.get("/reservations/1/rebook")
+        assert response.status_code == 401
+
+
+# ── Rebook flow integration (R07.4) ──────────────────────────────────────────
+
+
+class TestRebookFlowIntegration:
+    """
+    End-to-end coverage of the rebook flow at the API level:
+      1) GET /reservations/<id>/rebook to fetch previous booking + availability
+      2) POST /reservations/ with the returned hotel_id + room number
+    Includes the unavailable-original-room fallback described in R07.2/R07.4.
+    """
+
+    def _setup_user_and_hotel(self, client, session, email):
+        headers = _auth_headers(client, email)
+        user = session.query(User).filter_by(email=email).one()
+        hotel = _make_hotel(session)
+        return headers, user, hotel
+
+    def _seed_cache(self, hotel_id, rooms):
+        from backend.search.routes import CachedHotel, _hotel_details_cache
+        cached = CachedHotel()
+        cached.rooms = rooms
+        _hotel_details_cache[hotel_id] = cached
+
+    def _clear_cache(self, hotel_id):
+        from backend.search.routes import _hotel_details_cache
+        _hotel_details_cache.pop(hotel_id, None)
+
+    def _completed_past_booking(self, session, user, room, *, days_ago=30):
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() - timedelta(days=days_ago),
+            date.today() - timedelta(days=days_ago - 3),
+            price="300.00",
+        )
+        booking.status = Status.COMPLETED
+        session.flush()
+        return booking
+
+    def test_full_rebook_flow_when_original_room_available(
+        self, reservation_client, session
+    ):
+        """Happy path: original room free → rebook info → POST a new booking on it."""
+        headers, user, hotel = self._setup_user_and_hotel(
+            reservation_client, session, "rebook-flow-happy@example.com"
+        )
+        original_room = _make_typed_room(session, hotel, 201, RoomType.DOUBLE)
+        completed = self._completed_past_booking(session, user, original_room)
+
+        new_start = (date.today() + timedelta(days=60)).isoformat()
+        new_end = (date.today() + timedelta(days=63)).isoformat()
+
+        # Step 1: ask the rebook endpoint for previous-booking + availability
+        rebook_resp = reservation_client.get(
+            f"/reservations/{completed.id}/rebook"
+            f"?start_date={new_start}&end_date={new_end}",
+            headers=headers,
+        )
+        assert rebook_resp.status_code == 200
+        rebook_data = rebook_resp.get_json()
+        assert rebook_data["rebook"]["original_room_available"] is True
+        previous = rebook_data["previous_booking"]
+
+        # Step 2: feed those values back into POST /reservations/
+        create_resp = reservation_client.post(
+            "/reservations/",
+            json={
+                "title": previous["title"],
+                "hotel_id": previous["hotel_id"],
+                "room": previous["room"],
+                "start_date": new_start,
+                "end_date": new_end,
+            },
+            headers=headers,
+        )
+        assert create_resp.status_code == 201
+        created = create_resp.get_json()["booking"]
+        assert created["start_date"] == new_start
+        assert created["end_date"] == new_end
+        assert created["status"] == "INPROGRESS"
+
+        # The new booking should be against the same physical room as the previous one
+        session.expire_all()
+        new_booking = session.get(Booking, created["id"])
+        assert new_booking.room == original_room.id
+        assert new_booking.id != completed.id
+
+    def test_rebook_fallback_when_original_room_taken(
+        self, reservation_client, session
+    ):
+        """Fallback: original room blocked → rebook returns alternatives → book one."""
+        headers, user, hotel = self._setup_user_and_hotel(
+            reservation_client, session, "rebook-flow-fallback@example.com"
+        )
+        original_room = _make_typed_room(session, hotel, 201, RoomType.DOUBLE)
+        alt_room = _make_typed_room(session, hotel, 202, RoomType.TRIPLE)
+        completed = self._completed_past_booking(session, user, original_room)
+
+        new_start = date.today() + timedelta(days=90)
+        new_end = new_start + timedelta(days=3)
+
+        # Block the original room with a separate booking on the new dates
+        blocker = User(email="blocker@example.com", password="hashed")
+        session.add(blocker)
+        session.flush()
+        _make_booking(
+            session, blocker, original_room, new_start, new_end, price="300.00"
+        )
+
+        # Seed the cache so alternatives are returned by /rebook
+        self._seed_cache(hotel.id, [
+            {"room": 201, "room_type": "DOUBLE"},
+            {"room": 202, "room_type": "TRIPLE"},
+        ])
+
+        try:
+            rebook_resp = reservation_client.get(
+                f"/reservations/{completed.id}/rebook"
+                f"?start_date={new_start.isoformat()}"
+                f"&end_date={new_end.isoformat()}",
+                headers=headers,
+            )
+            assert rebook_resp.status_code == 200
+            rebook_data = rebook_resp.get_json()
+            assert rebook_data["rebook"]["original_room_available"] is False
+            alt_numbers = [r["room"] for r in rebook_data["rebook"]["alternative_rooms"]]
+            assert alt_room.room in alt_numbers
+
+            # Booking the original room should now fail with a conflict
+            blocked_resp = reservation_client.post(
+                "/reservations/",
+                json={
+                    "title": "Retry on original",
+                    "hotel_id": hotel.id,
+                    "room": original_room.room,
+                    "start_date": new_start.isoformat(),
+                    "end_date": new_end.isoformat(),
+                },
+                headers=headers,
+            )
+            assert blocked_resp.status_code == 409
+
+            # Booking the suggested alternative room should succeed
+            alt_resp = reservation_client.post(
+                "/reservations/",
+                json={
+                    "title": "Alternative room rebook",
+                    "hotel_id": hotel.id,
+                    "room": alt_room.room,
+                    "start_date": new_start.isoformat(),
+                    "end_date": new_end.isoformat(),
+                },
+                headers=headers,
+            )
+            assert alt_resp.status_code == 201
+            created = alt_resp.get_json()["booking"]
+            session.expire_all()
+            new_booking = session.get(Booking, created["id"])
+            assert new_booking.room == alt_room.id
+        finally:
+            self._clear_cache(hotel.id)
+
+    def test_rebook_then_create_uses_today_default_dates(
+        self, reservation_client, session
+    ):
+        """Without query params, /rebook returns today + original trip length, and POST works on those defaults."""
+        headers, user, hotel = self._setup_user_and_hotel(
+            reservation_client, session, "rebook-flow-defaults@example.com"
+        )
+        original_room = _make_typed_room(session, hotel, 301, RoomType.SINGLE)
+        completed = self._completed_past_booking(session, user, original_room)
+
+        rebook_resp = reservation_client.get(
+            f"/reservations/{completed.id}/rebook", headers=headers
+        )
+        assert rebook_resp.status_code == 200
+        data = rebook_resp.get_json()
+        suggested_start = data["rebook"]["start_date"]
+        suggested_end = data["rebook"]["end_date"]
+        assert suggested_start == date.today().isoformat()
+        assert suggested_end == (date.today() + timedelta(days=3)).isoformat()
+
+        create_resp = reservation_client.post(
+            "/reservations/",
+            json={
+                "title": data["previous_booking"]["title"],
+                "hotel_id": data["previous_booking"]["hotel_id"],
+                "room": data["previous_booking"]["room"],
+                "start_date": suggested_start,
+                "end_date": suggested_end,
+            },
+            headers=headers,
+        )
+        assert create_resp.status_code == 201
