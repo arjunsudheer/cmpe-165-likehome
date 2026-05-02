@@ -18,6 +18,97 @@
   color: var(--c-text);
 }
 
+.fav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fav-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--c-text);
+}
+
+.fav-empty--compact {
+  padding: 40px 20px;
+}
+
+.fav-empty--compact h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* Saved searches (moved from Settings) */
+.saved-searches-empty {
+  font-size: 14px;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+.saved-searches-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+}
+
+.saved-search-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.saved-search-destination {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.saved-search-destination:hover {
+  color: var(--c-primary);
+}
+
+.saved-search-meta {
+  font-size: 13px;
+  color: var(--c-text-muted);
+}
+
+.saved-search-date {
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.saved-search-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--c-danger);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+
+.saved-search-delete:hover {
+  text-decoration: underline;
+}
+
 /* Skeleton */
 .fav-skeletons { display: flex; flex-direction: column; gap: 12px; }
 .fav-skeleton {

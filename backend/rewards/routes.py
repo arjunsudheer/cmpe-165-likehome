@@ -67,8 +67,10 @@ def redeem_points():
         booking = db.get(Booking, booking_id)
         if not booking or booking.user != user_id:
             return jsonify({"error": "Booking not found"}), 404
-        if booking.status not in (Status.INPROGRESS, Status.CONFIRMED):
-            return jsonify({"error": "Cannot redeem for this booking"}), 400
+        if booking.status != Status.INPROGRESS:
+            return jsonify({
+                "error": "Rewards can only be applied at checkout before the booking is confirmed",
+            }), 400
         if points > user.points:
             return jsonify({"error": f"Only {user.points} pts available"}), 400
 

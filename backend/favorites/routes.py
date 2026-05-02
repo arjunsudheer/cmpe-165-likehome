@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, select, insert
@@ -42,18 +44,32 @@ def add_favorite(hotel_id):
             cached = _hotel_details_cache.get(hotel_id)
             if not cached:
                 return jsonify({"error": "Hotel not found"}), 404
-            db.add(Hotel(id=hotel_id, name=cached["name"], city=cached["city"],
-                         price_per_night=cached["price_per_night"], rating=cached["rating"]))
+            addr = (cached.address or "").strip() or f"LikeHome preview {hotel_id}"
+            rating = getattr(cached, "rating", 0) or 0
+            db.add(Hotel(
+                id=hotel_id,
+                name=cached.name or "Hotel",
+                city=cached.city or "",
+                price_per_night=Decimal(str(cached.price_per_night or 0)),
+                address=addr,
+                rating=Decimal(str(rating)),
+            ))
             db.commit()
-            for amenity in cached.amenities:
+            for amenity in cached.amenities or []:
                 db.execute(insert(HotelAmenity).values(hotel_id=hotel_id, name=amenity))
-            for room in cached.rooms:
+            for room in cached.rooms or []:
                 db.execute(insert(HotelRoom).values(hotel=hotel_id, room=room["room"], room_type=room["room_type"]))
-            for photo in cached.photos:
+            for photo in cached.photos or []:
                 db.execute(insert(HotelPhoto).values(hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]))
-            for review in cached.reviews:
+            for review in cached.reviews or []:
                 db.execute(insert(Review).values(user=review["user"], hotel=hotel_id, title=review["title"], content=review["content"], rating=review["rating"]))
-            db.execute(insert(CancellationPolicy).values(hotel_id=hotel_id, deadline_hours=cached.cancellation_policy["deadline_hours"], fee_percent=cached.cancellation_policy["fee_percent"], active=cached.cancellation_policy["active"]))
+            policy = cached.cancellation_policy if isinstance(cached.cancellation_policy, dict) else {}
+            db.execute(insert(CancellationPolicy).values(
+                hotel_id=hotel_id,
+                deadline_hours=policy.get("deadline_hours", 48),
+                fee_percent=policy.get("fee_percent", 0),
+                active=policy.get("active", True),
+            ))
             db.commit()
             hotel = db.get(Hotel, hotel_id)
 

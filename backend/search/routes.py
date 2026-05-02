@@ -23,7 +23,7 @@ class CachedHotel:
     reviews: list = field(default_factory=list)
     rooms: list = field(default_factory=list)
     photos: list = field(default_factory=list)
-    cancellation_policy: list = field(default_factory=list)
+    cancellation_policy: dict | None = None
 
 _hotel_details_cache: dict[int, CachedHotel] = {}
 
