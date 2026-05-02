@@ -50,6 +50,9 @@ def _pricing_summary(price_difference):
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
+    fee_amount = details["fee_amount"]
+    refund_amount = Decimal("0.00") if not booking.refundable else details["refund_amount"]
+    fee_amount = booking.total_price if not booking.refundable else details["fee_amount"]
     return {
         "booking_id": booking.id,
         "booking_number": booking.booking_number,
@@ -58,9 +61,9 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
-        "fee_amount": str(details["fee_amount"]),
-        "refund_amount": str(details["refund_amount"]),
-        "points_to_restore": int(points_to_restore),
+        "fee_amount": str(fee_amount),
+        "refund_amount": str(refund_amount),
+        "points_to_restore": 0 if not booking.refundable else int(points_to_restore),
         "summary": {
             "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
             "refund_message": f'Refund amount: ${details["refund_amount"]}',
@@ -93,7 +96,7 @@ def check_user_conflicts():
     with Session(engine) as db:
         for booking_id, title, b_start, b_end in rows:
             booking = db.get(Booking, booking_id)
-            if not booking or booking.status == Status.CANCELLED:
+            if not booking or booking.status in (Status.CANCELLED, Status.INPROGRESS):
                 continue
             room = db.get(HotelRoom, booking.room)
             hotel = db.get(Hotel, room.hotel) if room else None
@@ -185,6 +188,7 @@ def list_bookings():
                 "total_price": str(b.total_price),
                 "status": b.status.value,
                 "created_at": b.created_at.isoformat() if b.created_at else None,
+                "refundable": b.refundable,
             })
         return jsonify(results), 200
 
@@ -294,6 +298,7 @@ def create_booking():
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat(),
+                "refundable": booking.refundable,
             },
         }), 201
 
@@ -327,6 +332,7 @@ def get_booking(booking_id):
             "total_price": str(booking.total_price),
             "status": booking.status.value,
             "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+            "refundable": booking.refundable,
         }), 200
 
 
@@ -436,6 +442,7 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+                "refundable": booking.refundable,
             },
             "pricing_summary": pricing_summary,
         }), 200
@@ -465,15 +472,33 @@ def confirm_booking(booking_id):
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
-        points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        user = db.get(User, user_id)
-        user.points += points_earned
-        db.add(PointsTransaction(
-            user_id = user_id,
-            booking_id = booking_id,
-            points = points_earned,
-            log = f"Earned {points_earned} points on transaction {booking.booking_number}",
-        ))
+
+        overlapping = db.execute(
+            select(Booking).where(
+                and_(
+                    Booking.user == user_id,
+                    Booking.id != booking_id,
+                    Booking.status == Status.CONFIRMED,
+                    Booking.start_date < booking.end_date,
+                    Booking.end_date > booking.start_date
+                )
+            )
+        ).scalars().all()
+
+        for old in overlapping:
+            old.refundable = False
+
+        points_earned = 0
+        if not overlapping:
+            points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+            user = db.get(User, user_id)
+            user.points += points_earned
+            db.add(PointsTransaction(
+                user_id = user_id,
+                booking_id = booking_id,
+                points = points_earned,
+                log = f"Earned {points_earned} points on transaction {booking.booking_number}",
+            ))
 
         db.commit()
         return jsonify({
@@ -603,14 +628,27 @@ def cancel_booking(booking_id):
                 log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
             ))
 
-        if redeemed_points > 0 and user:
-            user.points += redeemed_points
-            db.add(PointsTransaction(
-                user_id=user_id,
-                booking_id=booking_id,
-                points=redeemed_points,
-                log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
-            ))
+        if earned > 0:
+            user = db.get(User, user_id)
+            if user:
+                user.points = max(0, user.points - earned)
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=-earned,
+                    log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
+                ))
+
+        if redeemed_points > 0 and booking.refundable:
+            user = db.get(User, user_id)
+            if user:
+                user.points += redeemed_points
+                db.add(PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=redeemed_points,
+                    log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
+                ))
 
         booking.status = Status.CANCELLED
         try:
