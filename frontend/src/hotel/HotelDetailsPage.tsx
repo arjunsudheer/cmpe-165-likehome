@@ -40,6 +40,31 @@ function HotelDetailsContent({ hotelId }: { hotelId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activePhoto, setActivePhoto] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  // Load favorite status once user is known and hotel id is set
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    fetch("/favorites/", { headers: auth.authHeader() })
+      .then((r) => r.ok ? r.json() : [])
+      .then((list: { hotel_id: number }[]) => {
+        setIsFavorited(list.some((f) => String(f.hotel_id) === hotelId));
+      })
+      .catch(() => { /* silently ignore */ });
+  }, [auth, hotelId]);
+
+  const toggleFavorite = async () => {
+    if (!auth.isAuthenticated) { navigate("/login"); return; }
+    setFavLoading(true);
+    const method = isFavorited ? "DELETE" : "POST";
+    try {
+      const r = await fetch(`/favorites/${hotelId}`, { method, headers: auth.authHeader() });
+      if (r.ok) setIsFavorited(!isFavorited);
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const refreshHotel = useCallback(() => {
     fetch(`/hotels/${hotelId}`)
@@ -137,9 +162,20 @@ function HotelDetailsContent({ hotelId }: { hotelId: string }) {
               <span className="hdp-price-num">${hotel.price_per_night.toFixed(0)}</span>
               <span className="hdp-price-label">/ night</span>
             </div>
-            <button className="btn btn-primary btn-lg hdp-reserve-btn" onClick={handleReserve}>
-              Reserve
-            </button>
+            <div className="hdp-reserve-row">
+              <button className="btn btn-primary btn-lg hdp-reserve-btn" onClick={handleReserve}>
+                Reserve
+              </button>
+              <button
+                className={`hdp-fav-btn${isFavorited ? " hdp-fav-btn--active" : ""}`}
+                onClick={toggleFavorite}
+                disabled={favLoading}
+                aria-label={isFavorited ? "Remove from saved" : "Save hotel"}
+                title={isFavorited ? "Remove from saved" : "Save hotel"}
+              >
+                {isFavorited ? "♥" : "♡"}
+              </button>
+            </div>
             {!auth.isAuthenticated && (
               <p className="hdp-login-hint">You'll be asked to sign in first.</p>
             )}

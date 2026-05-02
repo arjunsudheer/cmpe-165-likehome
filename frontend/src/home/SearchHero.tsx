@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import "./SearchHero.css";
 import type { SortField, SortOrder } from "./HomePage";
@@ -28,11 +28,12 @@ interface Props {
   sortSettings: {
     sortField: SortField,
     sortOrder: SortOrder
-  }
+  },
+  initialValues?: SearchValues | null;
 }
 
 const SearchHero = forwardRef<SearchHeroHandle, Props>(
-  ({ onSearch, isLoading, resultCount, filters, sortSettings }, ref) => {
+  ({ onSearch, isLoading, resultCount, filters, sortSettings, initialValues }, ref) => {
     const [destination, setDestination] = useState("");
     const [checkIn, setCheckIn] = useState("");
     const [checkOut, setCheckOut] = useState("");
@@ -40,6 +41,15 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
     const [error, setError] = useState("");
     const [savedSuccess, setSavedSucccess] = useState("")
     const auth = useAuth();
+
+    useEffect(() => {
+      if (initialValues) {
+        setDestination(initialValues.destination);
+        setCheckIn(initialValues.checkIn);
+        setCheckOut(initialValues.checkOut);
+        setGuests(initialValues.guests);
+      }
+    }, [initialValues]);
 
     const today = new Date().toISOString().split("T")[0];
     const canSearch = destination.trim() && checkIn && checkOut;
