@@ -95,7 +95,7 @@ def check_user_conflicts():
     with Session(engine) as db:
         for booking_id, title, b_start, b_end in rows:
             booking = db.get(Booking, booking_id)
-            if not booking or booking.status == Status.CANCELLED:
+            if not booking or booking.status in (Status.CANCELLED, Status.INPROGRESS):
                 continue
             room = db.get(HotelRoom, booking.room)
             hotel = db.get(Hotel, room.hotel) if room else None
