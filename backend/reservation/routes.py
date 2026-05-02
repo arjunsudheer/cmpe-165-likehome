@@ -696,7 +696,7 @@ def email_receipt(booking_id):
 <body>
   <div class="card">
     <div class="card-header">
-      <div class="brand">LuxuryHotels</div>
+      <div class="brand">Like Home</div>
       <div class="receipt-label">
         Booking Receipt
         <strong>{booking.booking_number}</strong>
