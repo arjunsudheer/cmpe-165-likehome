@@ -445,15 +445,17 @@ def confirm_booking(booking_id):
         for old in overlapping:
             old.refundable = False
 
-        points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        user = db.get(User, user_id)
-        user.points += points_earned
-        db.add(PointsTransaction(
-            user_id = user_id,
-            booking_id = booking_id,
-            points = points_earned,
-            log = f"Earned {points_earned} points on transaction {booking.booking_number}",
-        ))
+        points_earned = 0
+        if not overlapping:
+            points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+            user = db.get(User, user_id)
+            user.points += points_earned
+            db.add(PointsTransaction(
+                user_id = user_id,
+                booking_id = booking_id,
+                points = points_earned,
+                log = f"Earned {points_earned} points on transaction {booking.booking_number}",
+            ))
 
         db.commit()
         return jsonify({
