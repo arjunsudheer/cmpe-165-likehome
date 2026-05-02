@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import "./SearchHero.css";
 import type { SortField, SortOrder } from "./HomePage";
@@ -43,6 +43,15 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
     const auth = useAuth();
 
     // initialValues are applied on mount via useState initializers above
+    // Keep local fields in sync when parent provides initialValues (e.g. saved search click)
+    useEffect(() => {
+      if (initialValues) {
+        setDestination(initialValues.destination ?? "");
+        setCheckIn(initialValues.checkIn ?? "");
+        setCheckOut(initialValues.checkOut ?? "");
+        setGuests(initialValues.guests ?? 1);
+      }
+    }, [initialValues]);
 
     const today = new Date().toISOString().split("T")[0];
     const canSearch = destination.trim() && checkIn && checkOut;
