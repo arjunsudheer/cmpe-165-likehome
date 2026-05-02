@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [earnedPts, setEarnedPts] = useState(0);
+  const [hasOverlap, setHasOverlap] = useState(false)
   const [animatedEarnedPts, setAnimatedEarnedPts] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [redirectLeft, setRedirectLeft] = useState<number | null>(null);
@@ -63,6 +64,12 @@ export default function CheckoutPage() {
         if (b.error) { setError(b.error); return; }
         setBooking(b);
         setBalance(bal.total_points ?? 0);
+
+        if (b.start_date && b.end_date) {
+          fetch(`/reservations/check-conflicts?start_date=${b.start_date}&end_date=${b.end_date}`, { headers: h })
+            .then(r => r.json())
+            .then(data => setHasOverlap((data.conflicts ?? []).length > 0));
+        }
       })
       .catch(() => setError("Failed to load checkout data."))
       .finally(() => setLoading(false));
@@ -352,6 +359,11 @@ export default function CheckoutPage() {
               {pts > 0 && <span className="points-redeem-hint"> (No rewards earned when points are redeemed)</span>}
             </div>
 
+            {!hasOverlap && (
+              <div className="points-preview">
+                You will earn approximately <strong>+{estimatedEarnedPts.toLocaleString()} pts</strong> from this booking.
+              </div>
+            )}
             {!selectedCard && !isExpired && (
               <div className="alert alert-info" style={{ marginBottom: 12 }}>
                 💳 Please add a payment method above to continue.
