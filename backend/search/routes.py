@@ -424,6 +424,12 @@ def create_review(hotel_id):
         session.add(review)
         session.commit()
         new_rating = refresh_hotel_rating(hotel_id)
+        _hotel_details_cache[hotel_id].reviews.append({
+        "user":user_id,
+        "hotel":hotel_id,
+        "title":data.get("title", "No title"),
+        "content":data.get("content", "No content"),
+        "rating":rating})
     else:
         _hotel_details_cache[hotel_id].reviews.append({
         "user":user_id,
