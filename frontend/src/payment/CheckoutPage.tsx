@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [earnedPts, setEarnedPts] = useState(0);
+  const [hasOverlap, setHasOverlap] = useState(false)
   const [animatedEarnedPts, setAnimatedEarnedPts] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [redirectLeft, setRedirectLeft] = useState<number | null>(null);
@@ -63,6 +64,12 @@ export default function CheckoutPage() {
         if (b.error) { setError(b.error); return; }
         setBooking(b);
         setBalance(bal.total_points ?? 0);
+
+        if (b.start_date && b.end_date) {
+          fetch(`/reservations/check-conflicts?start_date=${b.start_date}&end_date=${b.end_date}`, { headers: h })
+            .then(r => r.json())
+            .then(data => setHasOverlap((data.conflicts ?? []).length > 0));
+        }
       })
       .catch(() => setError("Failed to load checkout data."))
       .finally(() => setLoading(false));
@@ -103,7 +110,8 @@ export default function CheckoutPage() {
   const maxPts = Math.min(balance, Math.floor(bookingTotal * RATE));
   const discount = pts / RATE;
   const finalTotal = Math.max(0, bookingTotal - discount);
-  const estimatedEarnedPts = Math.max(0, Math.floor(finalTotal * 10));
+  const estimatedEarnedPts =
+    pts > 0 ? 0 : Math.max(0, Math.floor(finalTotal * 10));
   const isExpired = timeLeft !== null && timeLeft === 0;
 
   useEffect(() => {
@@ -347,10 +355,11 @@ export default function CheckoutPage() {
               {pts > 0 && <div className="final-row final-row-discount"><span>Rewards discount</span><span>−${discount.toFixed(2)}</span></div>}
               <div className="final-row final-row-total"><span>Total due</span><strong>${finalTotal.toFixed(2)}</strong></div>
             </div>
-            <div className="points-preview">
-              You will earn approximately <strong>+{estimatedEarnedPts.toLocaleString()} pts</strong> from this booking.
-            </div>
-
+            {!hasOverlap && (
+              <div className="points-preview">
+                You will earn approximately <strong>+{estimatedEarnedPts.toLocaleString()} pts</strong> from this booking.
+              </div>
+            )}
             {!selectedCard && !isExpired && (
               <div className="alert alert-info" style={{ marginBottom: 12 }}>
                 💳 Please add a payment method above to continue.

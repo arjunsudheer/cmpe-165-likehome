@@ -11,7 +11,11 @@ from backend.db.db_connection import engine
 from backend.db.models import (
     Booking, CancellationPolicy, Hotel, HotelRoom, PointsTransaction, Status, User, HotelAmenity, HotelPhoto, Review
 )
-from backend.db.queries import get_overlapping_booking_dates, room_availability
+from backend.db.queries import (
+    booking_points_redeemed_total,
+    get_overlapping_booking_dates,
+    room_availability,
+)
 from backend.reservation import reservation_bp
 from backend.reservation.utils import (
     calculate_total_price,
@@ -50,6 +54,9 @@ def _pricing_summary(price_difference):
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
+    fee_amount = details["fee_amount"]
+    refund_amount = Decimal("0.00") if not booking.refundable else details["refund_amount"]
+    fee_amount = booking.total_price if not booking.refundable else details["fee_amount"]
     return {
         "booking_id": booking.id,
         "booking_number": booking.booking_number,
@@ -58,9 +65,9 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "fee_percent": str(details["fee_percent"]),
         "check_in_date": booking.start_date.isoformat(),
         "cutoff_at": details["cutoff_at"].isoformat(),
-        "fee_amount": str(details["fee_amount"]),
-        "refund_amount": str(details["refund_amount"]),
-        "points_to_restore": int(points_to_restore),
+        "fee_amount": str(fee_amount),
+        "refund_amount": str(refund_amount),
+        "points_to_restore": 0 if not booking.refundable else int(points_to_restore),
         "summary": {
             "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
             "refund_message": f'Refund amount: ${details["refund_amount"]}',
@@ -93,7 +100,7 @@ def check_user_conflicts():
     with Session(engine) as db:
         for booking_id, title, b_start, b_end in rows:
             booking = db.get(Booking, booking_id)
-            if not booking or booking.status == Status.CANCELLED:
+            if not booking or booking.status in (Status.CANCELLED, Status.INPROGRESS):
                 continue
             room = db.get(HotelRoom, booking.room)
             hotel = db.get(Hotel, room.hotel) if room else None
@@ -185,6 +192,7 @@ def list_bookings():
                 "total_price": str(b.total_price),
                 "status": b.status.value,
                 "created_at": b.created_at.isoformat() if b.created_at else None,
+                "refundable": b.refundable,
             })
         return jsonify(results), 200
 
@@ -225,9 +233,9 @@ def create_booking():
     with Session(engine) as db:
         hotel = db.get(Hotel, hotel_id)
         if not hotel:
-            cached = _hotel_details_cache[hotel_id]
+            cached = _hotel_details_cache.get(hotel_id)
             if not cached:
-                return None
+                return jsonify({"error": "Hotel not found"}), 404
             db.execute(insert(Hotel).values(id = hotel_id, name = cached.name, price_per_night = cached.price_per_night, city = cached.city, address = cached.address))
             db.commit()
             for amenity in cached.amenities:
@@ -238,7 +246,13 @@ def create_booking():
                 db.execute(insert(HotelPhoto).values(hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]))
             for review in cached.reviews:
                 db.execute(insert(Review).values(user=review["user"], hotel=hotel_id, title=review["title"], content=review["content"], rating=review["rating"]))
-            db.execute(insert(CancellationPolicy).values(hotel_id=hotel_id, deadline_hours=cached.cancellation_policy["deadline_hours"], fee_percent=cached.cancellation_policy["fee_percent"], active=cached.cancellation_policy["active"]))
+            policy = cached.cancellation_policy if isinstance(cached.cancellation_policy, dict) else {}
+            db.execute(insert(CancellationPolicy).values(
+                hotel_id=hotel_id,
+                deadline_hours=policy.get("deadline_hours", 48),
+                fee_percent=policy.get("fee_percent", 0),
+                active=policy.get("active", True),
+            ))
             db.commit()
             hotel = db.get(Hotel, hotel_id)
 
@@ -294,6 +308,7 @@ def create_booking():
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat(),
+                "refundable": booking.refundable,
             },
         }), 201
 
@@ -327,6 +342,7 @@ def get_booking(booking_id):
             "total_price": str(booking.total_price),
             "status": booking.status.value,
             "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+            "refundable": booking.refundable,
         }), 200
 
 
@@ -462,7 +478,7 @@ def _validate_reschedule_input(data):
     start_str = data.get("start_date")
     end_str = data.get("end_date")
     if not all([title, hotel_id, room_number, start_str, end_str]):
-        return jsonify({"error": "title, hotel_id, room, start_date, end_date required"}), 400
+        return None, jsonify({"error": "title, hotel_id, room, start_date, end_date required"}), 400
 
     try:
         start_date = date.fromisoformat(start_str)
@@ -500,6 +516,10 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
             return jsonify({"error": "Booking not found"}), 404
         if booking.status in (Status.CANCELLED, Status.COMPLETED):
             return jsonify({"error": "Booking cannot be rescheduled"}), 400
+
+        checkin_dt = datetime.combine(booking.start_date, datetime.min.time())
+        if (checkin_dt - datetime.now()).total_seconds() / 3600 < 48:
+            return jsonify({"error": "Cannot reschedule within 48 hours of check-in"}), 400
 
         room = db.execute(
             select(HotelRoom).where(HotelRoom.hotel == hotel_id, HotelRoom.room == room_number).with_for_update()
@@ -557,6 +577,7 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
                 "total_price": str(booking.total_price),
                 "status": booking.status.value,
                 "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
+                "refundable": booking.refundable,
             },
             "pricing_summary": pricing_summary,
         }), 200
@@ -586,15 +607,44 @@ def confirm_booking(booking_id):
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
-        points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        user = db.get(User, user_id)
-        user.points += points_earned
-        db.add(PointsTransaction(
-            user_id = user_id,
-            booking_id = booking_id,
-            points = points_earned,
-            log = f"Earned {points_earned} points on transaction {booking.booking_number}",
-        ))
+
+        room_row = db.get(HotelRoom, booking.room)
+        current_hotel_id = room_row.hotel if room_row else None
+
+        overlapping_same_hotel = []
+        if current_hotel_id is not None:
+            overlapping_same_hotel = db.execute(
+                select(Booking)
+                .join(HotelRoom, Booking.room == HotelRoom.id)
+                .where(
+                    and_(
+                        Booking.user == user_id,
+                        Booking.id != booking_id,
+                        Booking.status == Status.CONFIRMED,
+                        HotelRoom.hotel == current_hotel_id,
+                        Booking.start_date < booking.end_date,
+                        Booking.end_date > booking.start_date,
+                    )
+                )
+            ).scalars().all()
+
+        for old in overlapping_same_hotel:
+            old.refundable = False
+        if overlapping_same_hotel:
+            booking.refundable = False
+
+        redeemed_total = booking_points_redeemed_total(db, booking_id)
+        points_earned = 0
+        if not overlapping_same_hotel and redeemed_total == 0:
+            points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+            user = db.get(User, user_id)
+            user.points += points_earned
+            db.add(PointsTransaction(
+                user_id = user_id,
+                booking_id = booking_id,
+                points = points_earned,
+                log = f"Earned {points_earned} points on transaction {booking.booking_number}",
+            ))
 
         db.commit()
         return jsonify({
@@ -632,7 +682,21 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
+        earned_points = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        user = db.get(User, user_id)
+        if earned_points > 0 and user and user.points < earned_points:
+            total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+            details["fee_amount"] = total_price
+            details["refund_amount"] = Decimal("0.00")
+            details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -672,7 +736,21 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
+        earned = db.execute(
+            select(func.sum(PointsTransaction.points)).where(
+                and_(
+                    PointsTransaction.booking_id == booking_id,
+                    PointsTransaction.points > 0,
+                )
+            )
+        ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        user = db.get(User, user_id)
+        if earned > 0 and user and user.points < earned:
+            total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+            details["fee_amount"] = total_price
+            details["refund_amount"] = Decimal("0.00")
+            details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
             return jsonify({
                 "error": "Reservations can only be cancelled at least 48 hours before check-in",
@@ -686,28 +764,32 @@ def cancel_booking(booking_id):
                 "cancellation": _cancellation_payload(booking, details, redeemed_points),
             }), 200
 
-        # Reverse any points earned when this booking was confirmed
-        earned = db.execute(
-            select(func.sum(PointsTransaction.points)).where(
-                and_(
-                    PointsTransaction.booking_id == booking_id,
-                    PointsTransaction.points > 0,
-                )
-            )
-        ).scalar() or 0
-
-        if earned > 0:
-            user = db.get(User, user_id)
-            if user:
-                user.points = max(0, user.points - earned)
+        # Reverse points earned on confirmation; if balance is too low, claw back what we
+        # can and rely on the full-stay cancellation fee (see preview when points < earned).
+        if earned > 0 and user:
+            if user.points >= earned:
+                user.points -= earned
                 db.add(PointsTransaction(
                     user_id=user_id,
                     booking_id=booking_id,
                     points=-earned,
                     log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
                 ))
+            else:
+                removed = user.points
+                user.points = 0
+                if removed > 0:
+                    db.add(PointsTransaction(
+                        user_id=user_id,
+                        booking_id=booking_id,
+                        points=-removed,
+                        log=(
+                            f"Reversed {removed} pts of {earned} earned; remainder covered by "
+                            f"full cancellation fee — {booking.booking_number}"
+                        ),
+                    ))
 
-        if redeemed_points > 0:
+        if redeemed_points > 0 and booking.refundable:
             user = db.get(User, user_id)
             if user:
                 user.points += redeemed_points

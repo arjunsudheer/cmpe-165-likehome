@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
@@ -258,7 +258,8 @@ class TestModifyReservation:
             f"/reservations/{booking.id}",
             json={
                 "title": "Updated Test Stay",
-                "room": room.id,
+                "hotel_id": hotel.id,
+                "room": room.room,
                 "start_date": "2027-01-15",
                 "end_date": "2027-01-18",
             },
@@ -295,7 +296,8 @@ class TestModifyReservation:
             f"/reservations/{booking.id}",
             json={
                 "title": "Updated Room Test",
-                "room": new_room.id,
+                "hotel_id": hotel.id,
+                "room": new_room.room,
                 "start_date": "2027-02-01",
                 "end_date": "2027-02-03",
             },
@@ -334,7 +336,8 @@ class TestModifyReservation:
             f"/reservations/{booking.id}",
             json={
                 "title": "Updated Price Test",
-                "room": room.id,
+                "hotel_id": hotel.id,
+                "room": room.room,
                 "start_date": "2027-03-10",
                 "end_date": "2027-03-14",
             },
@@ -378,7 +381,7 @@ class TestListBookings:
 
 class TestRedemptionAccuracy:
 
-    def _confirmed_booking_fixture(self, client, session, email):
+    def _inprogress_booking_fixture(self, client, session, email):
         headers = _auth_headers(client, email)
         user = session.query(User).filter_by(email=email).one()
         hotel = _make_hotel(session)
@@ -388,13 +391,14 @@ class TestRedemptionAccuracy:
             date(2027, 6, 1), date(2027, 6, 4),
             price="300.00",
         )
-        booking.status = Status.CONFIRMED
+        booking.status = Status.INPROGRESS
+        booking.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
         user.points = 500
         session.flush()
         return headers, booking, user
 
     def test_redeem_deducts_correct_points(self, reservation_client, session):
-        headers, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._inprogress_booking_fixture(
             reservation_client, session, "test@test1.com"
         )
         before = user.points
@@ -407,7 +411,7 @@ class TestRedemptionAccuracy:
         assert session.get(User, user.id).points == before - 100
 
     def test_redeem_cannot_exceed_booking_total(self, reservation_client, session):
-        headers, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._inprogress_booking_fixture(
             reservation_client, session, "test@test2.com"
         )
         user.points = 99999
@@ -421,7 +425,7 @@ class TestRedemptionAccuracy:
         assert response.status_code == 400
 
     def test_points_not_deducted_on_failed_redemption(self, reservation_client, session):
-        headers, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._inprogress_booking_fixture(
             reservation_client, session, "test@test3.com"
         )
         before = user.points
@@ -434,7 +438,7 @@ class TestRedemptionAccuracy:
         assert session.get(User, user.id).points == before
 
     def test_partial_redeem_leaves_correct_remainder(self, reservation_client, session):
-        headers, booking, user = self._confirmed_booking_fixture(
+        headers, booking, user = self._inprogress_booking_fixture(
             reservation_client, session, "test@test4.com"
         )
         points_to_use = 200
@@ -450,6 +454,25 @@ class TestRedemptionAccuracy:
         updated_booking = session.get(Booking, booking.id)
         assert updated_user.points == balance_before - points_to_use
         assert updated_booking.total_price == total_before - Decimal("2.00")
+
+    def test_redeem_rejected_when_booking_already_confirmed(self, reservation_client, session):
+        headers = _auth_headers(reservation_client, "redeem-confirmed@example.com")
+        user = session.query(User).filter_by(email="redeem-confirmed@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 199, RoomType.DOUBLE)
+        booking = _make_booking(
+            session, user, room,
+            date(2027, 8, 1), date(2027, 8, 4),
+            price="100.00",
+        )
+        user.points = 500
+        session.flush()
+        response = reservation_client.post(
+            "/rewards/redeem",
+            json={"points": 100, "booking_id": booking.id},
+            headers=headers,
+        )
+        assert response.status_code == 400
 
 class TestCancelReservationPolicy:
 
@@ -549,8 +572,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
@@ -593,8 +616,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=5),
-            date.today() + timedelta(days=7),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="210.00",
         )
 
@@ -650,8 +673,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=6),
-            date.today() + timedelta(days=8),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="185.00",
         )
         session.add_all([
@@ -704,8 +727,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
+            date.today() + timedelta(days=5),
             date.today() + timedelta(days=7),
-            date.today() + timedelta(days=9),
             price="200.00",
         )
 
@@ -716,10 +739,11 @@ class TestCancelReservationPolicy:
 
         assert response.status_code == 200
         payload = response.get_json()["cancellation"]
+        # DB policy controls the blocked window (72h); fee tier overrides fee_percent
         assert payload["policy_hours"] == 72
-        assert payload["fee_percent"] == "15.00"
-        assert payload["fee_amount"] == "30.00"
-        assert payload["refund_amount"] == "170.00"
+        assert payload["fee_percent"] == "20.00"
+        assert payload["fee_amount"] == "40.00"
+        assert payload["refund_amount"] == "160.00"
 
     def test_confirmed_cancellation_applies_policy_fee(
         self, reservation_client, session
@@ -737,8 +761,8 @@ class TestCancelReservationPolicy:
             session,
             user,
             room,
-            date.today() + timedelta(days=8),
-            date.today() + timedelta(days=10),
+            date.today() + timedelta(days=9),
+            date.today() + timedelta(days=11),
             price="250.00",
         )
 
@@ -750,8 +774,9 @@ class TestCancelReservationPolicy:
 
         assert response.status_code == 200
         payload = response.get_json()
-        assert payload["refund"]["fee_amount"] == "50.00"
-        assert payload["refund"]["amount"] == "200.00"
+        # >7 days out → $0 fee tier regardless of DB policy fee_percent
+        assert payload["refund"]["fee_amount"] == "0.00"
+        assert payload["refund"]["amount"] == "250.00"
 
     def test_confirmed_cancellation_writes_points_logs(
         self, reservation_client, session

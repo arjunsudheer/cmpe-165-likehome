@@ -26,7 +26,7 @@ export default function BookingConflictWarning({
 
         <h2 className="conflict-title">Scheduling Conflict</h2>
         <p className="conflict-sub">
-          These bookings overlap. You can only stay in one place at a time.
+          These bookings overlap. This and other overlapping bookings will become nonrefundable and no rewards will be earned on this purchase.
         </p>
 
         <div className="conflict-bookings">

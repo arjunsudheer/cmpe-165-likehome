@@ -168,6 +168,7 @@ export default function HomePage() {
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+  const [initialSearchValues, setInitialSearchValues] = useState<SearchValues | null>(null);
 
   const [filters, setFilters] = useState({
     maxPrice: 1000,
@@ -213,6 +214,13 @@ export default function HomePage() {
               destIds: data.dest_ids,
             })
           );
+          setInitialSearchValues({
+            destination: data.destination,
+            checkIn: data.check_in,
+            checkOut: data.check_out,
+            guests: data.guests,
+            savedSearchId: savedSearchId
+          });
         })
         .catch(() => setError("Failed to load hotels."))
         .finally(() => { setLoading(false); setSearching(false); });
@@ -276,6 +284,7 @@ export default function HomePage() {
     setResultCount(null);
     setHasSearched(false);
     setError("");
+    setInitialSearchValues(null);
     // Reset sort back to nothing on clear
     setSortField("none");
     setSortOrder("asc");
@@ -302,6 +311,7 @@ export default function HomePage() {
         resultCount={resultCount}
         filters={filters}
         sortSettings={{ sortField: sortField, sortOrder: sortOrder }}
+        initialValues={initialSearchValues}
       />
 
       <div className="home-body">

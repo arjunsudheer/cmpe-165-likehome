@@ -1,0 +1,230 @@
+.fav-page {
+  min-height: calc(100vh - var(--navbar-h));
+  background: var(--c-bg);
+  padding: 40px 20px 80px;
+}
+
+.fav-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.fav-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--c-text);
+}
+
+.fav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fav-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--c-text);
+}
+
+.fav-empty--compact {
+  padding: 40px 20px;
+}
+
+.fav-empty--compact h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* Saved searches (moved from Settings) */
+.saved-searches-empty {
+  font-size: 14px;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+.saved-searches-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+}
+
+.saved-search-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.saved-search-destination {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.saved-search-destination:hover {
+  color: var(--c-primary);
+}
+
+.saved-search-meta {
+  font-size: 13px;
+  color: var(--c-text-muted);
+}
+
+.saved-search-date {
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.saved-search-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--c-danger);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+
+.saved-search-delete:hover {
+  text-decoration: underline;
+}
+
+/* Skeleton */
+.fav-skeletons { display: flex; flex-direction: column; gap: 12px; }
+.fav-skeleton {
+  height: 140px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--c-surface) 25%, var(--c-surface-2) 50%, var(--c-surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.5s infinite;
+}
+
+/* Empty state */
+.fav-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+.fav-empty-icon {
+  font-size: 64px;
+  line-height: 1;
+  color: var(--c-text-muted);
+  margin-bottom: 16px;
+}
+.fav-empty h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.fav-empty p { font-size: 15px; color: var(--c-text-muted); margin-bottom: 24px; }
+
+/* Grid */
+.fav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* Card */
+.fav-card { padding: 0; overflow: hidden; }
+
+.fav-card-banner {
+  height: 80px;
+  width: 100%;
+}
+
+.fav-card-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fav-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.fav-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--c-text);
+  text-decoration: none;
+  display: block;
+  margin-bottom: 3px;
+}
+.fav-card-name:hover { color: var(--c-primary); }
+
+.fav-card-city {
+  font-size: 13px;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+.fav-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  color: var(--c-danger);
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: opacity .15s, transform .15s;
+  flex-shrink: 0;
+}
+.fav-remove-btn:hover { opacity: .7; transform: scale(1.15); }
+
+.fav-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fav-stars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.fav-stars .star { color: var(--c-border); font-size: 14px; }
+.fav-stars .star.filled { color: var(--c-star); }
+.fav-rating-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  margin-left: 4px;
+}
+
+.fav-price strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--c-primary);
+}
+.fav-price-label {
+  font-size: 13px;
+  color: var(--c-text-muted);
+  margin-left: 2px;
+}
+
+.fav-view-btn {
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+}

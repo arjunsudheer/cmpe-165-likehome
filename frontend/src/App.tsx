@@ -16,6 +16,7 @@ import CheckoutPage from "./payment/CheckoutPage";
 import RewardsPage from "./rewards/RewardsPage";
 import MyBookingsPage from "./mybooking/MyBookingsPage";
 import SettingsPage from "./settings/SettingsPage";
+import FavoritesPage from "./favorites/FavoritesPage";
 import "./index.css";
 
 // VITE_GOOGLE_CLIENT_ID is optional — Google button is hidden when absent
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/rewards" element={<RewardsPage />} />
               <Route path="/my-bookings" element={<MyBookingsPage />} />
+              <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </main>

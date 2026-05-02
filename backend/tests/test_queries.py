@@ -80,6 +80,46 @@ class TestBooking:
         transaction = session.execute(select(PointsTransaction).where(PointsTransaction.booking_id == booking.id, PointsTransaction.points == int(booking.total_price * 10))).one_or_none()
         assert booking.status == Status.COMPLETED and old_points + int(booking.total_price * 10) == self.user.points and transaction is not None
 
+    def test_no_completion_points_when_rewards_applied_to_booking(self, session):
+        old_points = self.user.points
+        hotel = Hotel(name="Redeem Hotel", price_per_night=100.00, city="San Jose", address="999 Redeem St")
+        session.add(hotel)
+        session.flush()
+        room = HotelRoom(hotel=hotel.id, room=1, room_type=RoomType.DOUBLE)
+        session.add(room)
+        session.flush()
+        booking = Booking(
+            booking_number="RH-01",
+            title="Trip",
+            user=self.user_id,
+            room=room.id,
+            start_date=date(2026, 1, 6),
+            end_date=date(2026, 1, 10),
+            total_price=400.00,
+        )
+        session.add(booking)
+        session.flush()
+        session.add(PointsTransaction(
+            user_id=self.user_id,
+            booking_id=booking.id,
+            points=-1000,
+            log="Redeemed at checkout",
+        ))
+        session.flush()
+        with patch('backend.jobs.bookings.engine', session.bind):
+            complete_bookings_and_earn_points()
+        session.refresh(booking)
+        session.refresh(self.user)
+        completion_tx = session.execute(
+            select(PointsTransaction).where(
+                PointsTransaction.booking_id == booking.id,
+                PointsTransaction.points > 0,
+            )
+        ).scalars().first()
+        assert booking.status == Status.COMPLETED
+        assert self.user.points == old_points
+        assert completion_tx is None
+
     def test_no_award_points_for_uncompleted_booking(self, session):
         old_points = self.user.points
         hotel = Hotel(name="New Hotel", price_per_night=100.00, city="San Jose", address="1234 Main St")

@@ -2,7 +2,7 @@ import enum
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime,
-    Enum, ForeignKey, Integer, Numeric, String, func, JSON
+    Enum, ForeignKey, Integer, Numeric, String, UniqueConstraint, func, JSON
 )
 from backend.db.db_connection import Base
 
@@ -97,6 +97,7 @@ class Booking(Base):
     expires_at = Column(DateTime, nullable=True)
     reminder_email_sent = Column(Boolean, default=False)
     reminder_notification_created = Column(Boolean, default=False)
+    refundable = Column(Boolean, default=True)
 
 
 class Notification(Base):
@@ -138,6 +139,14 @@ class Coupon(Base):
     expires_at = Column(DateTime)
 
 
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (UniqueConstraint("user_id", "hotel_id"),)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), nullable=False)
+
+
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
     id = Column(Integer, primary_key=True)
@@ -146,6 +155,7 @@ class PasswordResetToken(Base):
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
 
 class SavedSearch(Base):
     __tablename__ = "saved_searches"

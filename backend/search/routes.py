@@ -23,7 +23,7 @@ class CachedHotel:
     reviews: list = field(default_factory=list)
     rooms: list = field(default_factory=list)
     photos: list = field(default_factory=list)
-    cancellation_policy: list = field(default_factory=list)
+    cancellation_policy: dict | None = None
 
 _hotel_details_cache: dict[int, CachedHotel] = {}
 
@@ -68,14 +68,14 @@ def _mock_hotel_details_for_preview(hotel_id):
         session.commit()
 
     reviews = []
-    for review_offset in range(2):
+    for review_offset in range(rng.randint(1, 10)):
         user_id = rng.choice(user_ids)
         reviews.append({
                 "user":user_id,
                 "hotel":hotel_id,
                 "title":f"Guest review {review_offset + 1}",
                 "content":f"Comfortable stay at hotel {hotel_id}.",
-                "rating":4 if review_offset == 0 else 5,
+                "rating":rng.randint(1, 5)
             }
         )
 
@@ -331,6 +331,10 @@ def get_hotel_details(hotel_id):
     if hotel_id not in _hotel_details_cache:
         _hotel_details_cache[hotel_id] = CachedHotel()
     hotel =  _hotel_details_cache[hotel_id]
+    if not hotel.reviews or not hotel.amenities:
+        result = _mock_hotel_details_for_preview(hotel_id)
+        hotel.amenities = result.get('amenities')
+        hotel.reviews = result.get('reviews')
     if not hotel.rooms or not hotel.photos:
         result = _mock_hotel_details_for_individual_page(hotel_id)
         hotel.rooms = result.get('rooms')
@@ -340,6 +344,11 @@ def get_hotel_details(hotel_id):
     
     querystring = {"dest_ids": dest_ids, "hotel_id":hotel_id,"search_id":search_id,"departure_date":check_out_raw,"arrival_date":check_in_raw,"rec_guest_qty":guests,"rec_room_qty":"1","languagecode":"en-us","currency_code":"USD"}
     response = _api_response(hotel_details_url, querystring)
+    hotel.name = response[0].get('hotel_name') or hotel.name
+    hotel.city = response[0].get('city') or hotel.city
+    breakdown = response[0].get('composite_price_breakdown') or {}
+    per_night = breakdown.get('gross_amount_per_night') if breakdown else {}
+    hotel.price_per_night = _f(per_night.get('value')) if per_night else hotel.price_per_night
     hotel.address = response[0].get('address') if response else None
 
     # Group rooms by type for display
@@ -415,6 +424,12 @@ def create_review(hotel_id):
         session.add(review)
         session.commit()
         new_rating = refresh_hotel_rating(hotel_id)
+        _hotel_details_cache[hotel_id].reviews.append({
+        "user":user_id,
+        "hotel":hotel_id,
+        "title":data.get("title", "No title"),
+        "content":data.get("content", "No content"),
+        "rating":rating})
     else:
         _hotel_details_cache[hotel_id].reviews.append({
         "user":user_id,
@@ -467,7 +482,7 @@ def edit_review(hotel_id, review_id):
     if not cached:
         return jsonify({"error": "Hotel not found"}), 404
 
-    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    cache_review = next((r for r in cached.reviews if r.get("hotel") == hotel_id and r.get("user") == user_id), None)
     if not cache_review:
         return jsonify({"error": "Review not found"}), 404
     if cache_review.get("user") != user_id:
@@ -513,7 +528,7 @@ def delete_review(hotel_id, review_id):
     if not cached:
         return jsonify({"error": "Hotel not found"}), 404
 
-    cache_review = next((r for r in cached.reviews if r.get("id") == review_id), None)
+    cache_review = next((r for r in cached.reviews if r.get("hotel") == hotel_id and r.get("user") == user_id), None)
     if not cache_review:
         return jsonify({"error": "Review not found"}), 404
     if cache_review.get("user") != user_id:
