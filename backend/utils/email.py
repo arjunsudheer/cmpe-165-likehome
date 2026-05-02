@@ -3,7 +3,7 @@ import smtplib
 from email.message import EmailMessage # pylint: disable=no-name-in-module
 from flask import current_app
 
-def send_email(to_email: str, subject: str, body: str):
+def send_email(to_email: str, subject: str, body: str, html_body: str = None):
     """
     Sends an email using the configured SMTP server.
     Uses current_app.config if available, otherwise falls back to environment variables.
@@ -34,6 +34,8 @@ def send_email(to_email: str, subject: str, body: str):
 
     msg = EmailMessage()
     msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype='html')
     msg['Subject'] = subject
     msg['From'] = from_email
     msg['To'] = to_email

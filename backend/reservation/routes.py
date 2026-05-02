@@ -1,4 +1,13 @@
+"""Reservation routes.
+
+Module contains several complex route handlers that are intentionally
+structured as single functions to keep request/response logic localized.
+Pylint warnings for too-many-locals/branches are disabled at module level.
+"""
+
 from datetime import date, datetime, timedelta, timezone
+
+# pylint: disable=too-many-locals,too-many-branches
 from decimal import Decimal
 
 from flask import jsonify, request
@@ -9,7 +18,16 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.db_connection import engine
 from backend.db.models import (
-    Booking, CancellationPolicy, Hotel, HotelRoom, PointsTransaction, Status, User, HotelAmenity, HotelPhoto, Review
+    Booking,
+    CancellationPolicy,
+    Hotel,
+    HotelRoom,
+    PointsTransaction,
+    Status,
+    User,
+    HotelAmenity,
+    HotelPhoto,
+    Review,
 )
 from backend.db.queries import get_overlapping_booking_dates, room_availability
 from backend.reservation import reservation_bp
@@ -19,15 +37,17 @@ from backend.reservation.utils import (
     get_cancellation_details,
     generate_booking_number,
     send_cancellation_email,
-    send_receipt_email
+    send_receipt_email,
 )
 from backend.search.routes import _hotel_details_cache
 
 POINTS_PER_DOLLAR = 10
 
+
 def _reschedule_conflicts(db, room_id, booking_id, start_date, end_date):
     return [
-        c for c in check_room_availability(db, room_id, start_date, end_date)
+        c
+        for c in check_room_availability(db, room_id, start_date, end_date)
         if c.id != booking_id
     ]
 
@@ -70,6 +90,7 @@ def _cancellation_payload(booking, details, points_to_restore=0):
 
 # ── User-level scheduling conflict check ─────────────────────────────────────
 
+
 @reservation_bp.route("/check-conflicts", methods=["GET"])
 @jwt_required()
 def check_user_conflicts():
@@ -97,18 +118,21 @@ def check_user_conflicts():
                 continue
             room = db.get(HotelRoom, booking.room)
             hotel = db.get(Hotel, room.hotel) if room else None
-            conflicts.append({
-                "booking_id": booking_id,
-                "title": title,
-                "hotel_name": hotel.name if hotel else None,
-                "start_date": b_start.isoformat(),
-                "end_date": b_end.isoformat(),
-            })
+            conflicts.append(
+                {
+                    "booking_id": booking_id,
+                    "title": title,
+                    "hotel_name": hotel.name if hotel else None,
+                    "start_date": b_start.isoformat(),
+                    "end_date": b_end.isoformat(),
+                }
+            )
 
     return jsonify({"conflicts": conflicts}), 200
 
 
 # ── Room availability ─────────────────────────────────────────────────────────
+
 
 @reservation_bp.route("/availability", methods=["GET"])
 def get_available_rooms():
@@ -131,65 +155,79 @@ def get_available_rooms():
     cached = _hotel_details_cache.get(hotel_id)
     if not cached or not cached.rooms:
         return jsonify({"error": "Hotel not found"}), 404
-    
+
     with Session(engine) as db:
-        booked_room_numbers = db.execute(
-            select(HotelRoom.room)
-            .join(Booking, Booking.room == HotelRoom.id)
-            .where(
-                HotelRoom.hotel == hotel_id,
-                Booking.start_date < end_date,
-                Booking.end_date > start_date,
-                Booking.status.in_([Status.CONFIRMED, Status.INPROGRESS])
+        booked_room_numbers = (
+            db.execute(
+                select(HotelRoom.room)
+                .join(Booking, Booking.room == HotelRoom.id)
+                .where(
+                    HotelRoom.hotel == hotel_id,
+                    Booking.start_date < end_date,
+                    Booking.end_date > start_date,
+                    Booking.status.in_([Status.CONFIRMED, Status.INPROGRESS]),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
-    available = [
-        r for r in cached.rooms 
-        if r["room"] not in booked_room_numbers
-    ]
+    available = [r for r in cached.rooms if r["room"] not in booked_room_numbers]
 
-    return jsonify([
-        {"id": r["room"], "room": r["room"], "room_type": r["room_type"]}
-        for r in available
-    ]), 200
+    return (
+        jsonify(
+            [
+                {"id": r["room"], "room": r["room"], "room_type": r["room_type"]}
+                for r in available
+            ]
+        ),
+        200,
+    )
 
 
 # ── List bookings ─────────────────────────────────────────────────────────────
+
 
 @reservation_bp.route("/", methods=["GET"])
 @jwt_required()
 def list_bookings():
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
-        bookings = db.execute(
-            select(Booking)
-            .where(Booking.user == user_id)
-            .order_by(Booking.created_at.desc())
-        ).scalars().all()
+        bookings = (
+            db.execute(
+                select(Booking)
+                .where(Booking.user == user_id)
+                .order_by(Booking.created_at.desc())
+            )
+            .scalars()
+            .all()
+        )
 
         results = []
         for b in bookings:
             room = db.get(HotelRoom, b.room)
             hotel = db.get(Hotel, room.hotel) if room else None
-            results.append({
-                "id": b.id,
-                "booking_number": b.booking_number,
-                "title": b.title,
-                "hotel_id": hotel.id if hotel else None,
-                "hotel_name": hotel.name if hotel else None,
-                "hotel_city": hotel.city if hotel else None,
-                "room_type": room.room_type.value if room else None,
-                "start_date": b.start_date.isoformat(),
-                "end_date": b.end_date.isoformat(),
-                "total_price": str(b.total_price),
-                "status": b.status.value,
-                "created_at": b.created_at.isoformat() if b.created_at else None,
-            })
+            results.append(
+                {
+                    "id": b.id,
+                    "booking_number": b.booking_number,
+                    "title": b.title,
+                    "hotel_id": hotel.id if hotel else None,
+                    "hotel_name": hotel.name if hotel else None,
+                    "hotel_city": hotel.city if hotel else None,
+                    "room_type": room.room_type.value if room else None,
+                    "start_date": b.start_date.isoformat(),
+                    "end_date": b.end_date.isoformat(),
+                    "total_price": str(b.total_price),
+                    "status": b.status.value,
+                    "created_at": b.created_at.isoformat() if b.created_at else None,
+                }
+            )
         return jsonify(results), 200
 
 
 # ── Create booking ────────────────────────────────────────────────────────────
+
 
 @reservation_bp.route("/", methods=["POST"])
 @jwt_required()
@@ -225,46 +263,81 @@ def create_booking():
     with Session(engine) as db:
         hotel = db.get(Hotel, hotel_id)
         if not hotel:
-            cached = _hotel_details_cache[hotel_id]
+            cached = _hotel_details_cache.get(hotel_id)
             if not cached:
-                return None
-            db.execute(insert(Hotel).values(id = hotel_id, name = cached.name, price_per_night = cached.price_per_night, city = cached.city, address = cached.address))
+                return jsonify({"error": "Hotel not found"}), 404
+            db.execute(
+                insert(Hotel).values(
+                    id=hotel_id,
+                    name=cached.name,
+                    price_per_night=cached.price_per_night,
+                    city=cached.city,
+                    address=cached.address,
+                )
+            )
             db.commit()
             for amenity in cached.amenities:
                 db.execute(insert(HotelAmenity).values(hotel_id=hotel_id, name=amenity))
             for room in cached.rooms:
-                db.execute(insert(HotelRoom).values(hotel=hotel_id, room=room["room"], room_type=room["room_type"]))
+                db.execute(
+                    insert(HotelRoom).values(
+                        hotel=hotel_id, room=room["room"], room_type=room["room_type"]
+                    )
+                )
             for photo in cached.photos:
-                db.execute(insert(HotelPhoto).values(hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]))
+                db.execute(
+                    insert(HotelPhoto).values(
+                        hotel_id=hotel_id, url=photo["url"], alt_text=photo["alt_text"]
+                    )
+                )
             for review in cached.reviews:
-                db.execute(insert(Review).values(user=review["user"], hotel=hotel_id, title=review["title"], content=review["content"], rating=review["rating"]))
-            db.execute(insert(CancellationPolicy).values(hotel_id=hotel_id, deadline_hours=cached.cancellation_policy["deadline_hours"], fee_percent=cached.cancellation_policy["fee_percent"], active=cached.cancellation_policy["active"]))
+                db.execute(
+                    insert(Review).values(
+                        user=review["user"],
+                        hotel=hotel_id,
+                        title=review["title"],
+                        content=review["content"],
+                        rating=review["rating"],
+                    )
+                )
+            db.execute(
+                insert(CancellationPolicy).values(
+                    hotel_id=hotel_id,
+                    deadline_hours=cached.cancellation_policy["deadline_hours"],
+                    fee_percent=cached.cancellation_policy["fee_percent"],
+                    active=cached.cancellation_policy["active"],
+                )
+            )
             db.commit()
             hotel = db.get(Hotel, hotel_id)
 
         db_room = db.execute(
             select(HotelRoom).where(
-                HotelRoom.hotel == hotel_id,
-                HotelRoom.room == room_number
+                HotelRoom.hotel == hotel_id, HotelRoom.room == room_number
             )
         ).scalar_one_or_none()
-        
+
         if not db_room:
             return jsonify({"error": f"Room {room_number} not found"}), 404
 
         conflicts = check_room_availability(db, db_room.id, start_date, end_date)
         if conflicts:
-            return jsonify({
-                "error": "Room unavailable for selected dates",
-                "conflicts": [
+            return (
+                jsonify(
                     {
-                        "booking_id": c.id,
-                        "start_date": c.start_date.isoformat(),
-                        "end_date": c.end_date.isoformat(),
+                        "error": "Room unavailable for selected dates",
+                        "conflicts": [
+                            {
+                                "booking_id": c.id,
+                                "start_date": c.start_date.isoformat(),
+                                "end_date": c.end_date.isoformat(),
+                            }
+                            for c in conflicts
+                        ],
                     }
-                    for c in conflicts
-                ],
-            }), 409
+                ),
+                409,
+            )
 
         total = calculate_total_price(hotel.price_per_night, start_date, end_date)
         booking = Booking(
@@ -276,29 +349,36 @@ def create_booking():
             end_date=end_date,
             total_price=total,
             status=Status.INPROGRESS,
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+            + timedelta(minutes=5),
         )
         db.add(booking)
         db.commit()
 
-        return jsonify({
-            "message": "Booking created — confirm within 5 minutes",
-            "booking": {
-                "id": booking.id,
-                "booking_number": booking.booking_number,
-                "title": booking.title,
-                "hotel_name": hotel.name,
-                "hotel_city": hotel.city,
-                "start_date": booking.start_date.isoformat(),
-                "end_date": booking.end_date.isoformat(),
-                "total_price": str(booking.total_price),
-                "status": booking.status.value,
-                "expires_at": booking.expires_at.isoformat(),
-            },
-        }), 201
+        return (
+            jsonify(
+                {
+                    "message": "Booking created — confirm within 5 minutes",
+                    "booking": {
+                        "id": booking.id,
+                        "booking_number": booking.booking_number,
+                        "title": booking.title,
+                        "hotel_name": hotel.name,
+                        "hotel_city": hotel.city,
+                        "start_date": booking.start_date.isoformat(),
+                        "end_date": booking.end_date.isoformat(),
+                        "total_price": str(booking.total_price),
+                        "status": booking.status.value,
+                        "expires_at": booking.expires_at.isoformat(),
+                    },
+                }
+            ),
+            201,
+        )
 
 
 # ── Get single booking ────────────────────────────────────────────────────────
+
 
 @reservation_bp.route("/<int:booking_id>", methods=["GET"])
 @jwt_required()
@@ -306,7 +386,9 @@ def get_booking(booking_id):
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
@@ -314,20 +396,27 @@ def get_booking(booking_id):
         room = db.get(HotelRoom, booking.room)
         hotel = db.get(Hotel, room.hotel) if room else None
 
-        return jsonify({
-            "id": booking.id,
-            "booking_number": booking.booking_number,
-            "title": booking.title,
-            "hotel_id": hotel.id if hotel else None,
-            "hotel_name": hotel.name if hotel else None,
-            "hotel_city": hotel.city if hotel else None,
-            "room_type": room.room_type.value if room else None,
-            "start_date": booking.start_date.isoformat(),
-            "end_date": booking.end_date.isoformat(),
-            "total_price": str(booking.total_price),
-            "status": booking.status.value,
-            "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "id": booking.id,
+                    "booking_number": booking.booking_number,
+                    "title": booking.title,
+                    "hotel_id": hotel.id if hotel else None,
+                    "hotel_name": hotel.name if hotel else None,
+                    "hotel_city": hotel.city if hotel else None,
+                    "room_type": room.room_type.value if room else None,
+                    "start_date": booking.start_date.isoformat(),
+                    "end_date": booking.end_date.isoformat(),
+                    "total_price": str(booking.total_price),
+                    "status": booking.status.value,
+                    "expires_at": (
+                        booking.expires_at.isoformat() if booking.expires_at else None
+                    ),
+                }
+            ),
+            200,
+        )
 
 
 def _validate_reschedule_input(data):
@@ -337,7 +426,11 @@ def _validate_reschedule_input(data):
     start_str = data.get("start_date")
     end_str = data.get("end_date")
     if not all([title, hotel_id, room_number, start_str, end_str]):
-        return jsonify({"error": "title, hotel_id, room, start_date, end_date required"}), 400
+        return (
+            None,
+            jsonify({"error": "title, hotel_id, room, start_date, end_date required"}),
+            400,
+        )
 
     try:
         start_date = date.fromisoformat(start_str)
@@ -355,7 +448,7 @@ def _validate_reschedule_input(data):
 
 @reservation_bp.route("/<int:booking_id>", methods=["PATCH"])
 @jwt_required()
-def reschedule_booking(booking_id): # pylint: disable=too-many-locals
+def reschedule_booking(booking_id):  # pylint: disable=too-many-locals
     user_id = int(get_jwt_identity())
     data = request.get_json(silent=True)
     if not data:
@@ -369,7 +462,9 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
 
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
@@ -378,10 +473,15 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
 
         checkin_dt = datetime.combine(booking.start_date, datetime.min.time())
         if (checkin_dt - datetime.now()).total_seconds() / 3600 < 48:
-            return jsonify({"error": "Cannot reschedule within 48 hours of check-in"}), 400
+            return (
+                jsonify({"error": "Cannot reschedule within 48 hours of check-in"}),
+                400,
+            )
 
         room = db.execute(
-            select(HotelRoom).where(HotelRoom.hotel == hotel_id, HotelRoom.room == room_number).with_for_update()
+            select(HotelRoom)
+            .where(HotelRoom.hotel == hotel_id, HotelRoom.room == room_number)
+            .with_for_update()
         ).scalar_one_or_none()
         if not room:
             return jsonify({"error": "Room not found"}), 404
@@ -390,21 +490,24 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
         if not hotel:
             return jsonify({"error": "Hotel not found"}), 404
 
-        conflicts = _reschedule_conflicts(
-            db, room.id, booking.id, start_date, end_date
-        )
+        conflicts = _reschedule_conflicts(db, room.id, booking.id, start_date, end_date)
         if conflicts:
-            return jsonify({
-                "error": "Room unavailable for selected dates",
-                "conflicts": [
+            return (
+                jsonify(
                     {
-                        "booking_id": c.id,
-                        "start_date": c.start_date.isoformat(),
-                        "end_date": c.end_date.isoformat(),
+                        "error": "Room unavailable for selected dates",
+                        "conflicts": [
+                            {
+                                "booking_id": c.id,
+                                "start_date": c.start_date.isoformat(),
+                                "end_date": c.end_date.isoformat(),
+                            }
+                            for c in conflicts
+                        ],
                     }
-                    for c in conflicts
-                ],
-            }), 409
+                ),
+                409,
+            )
 
         original_price = booking.total_price
         new_price = calculate_total_price(hotel.price_per_night, start_date, end_date)
@@ -422,26 +525,36 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
 
         pricing_summary = _pricing_summary(price_difference)
 
-        return jsonify({
-            "message": "Booking updated",
-            "booking": {
-                "id": booking.id,
-                "booking_number": booking.booking_number,
-                "title": booking.title,
-                "hotel_name": hotel.name,
-                "hotel_city": hotel.city,
-                "start_date": booking.start_date.isoformat(),
-                "end_date": booking.end_date.isoformat(),
-                "original_price": str(original_price),
-                "total_price": str(booking.total_price),
-                "status": booking.status.value,
-                "expires_at": booking.expires_at.isoformat() if booking.expires_at else None,
-            },
-            "pricing_summary": pricing_summary,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Booking updated",
+                    "booking": {
+                        "id": booking.id,
+                        "booking_number": booking.booking_number,
+                        "title": booking.title,
+                        "hotel_name": hotel.name,
+                        "hotel_city": hotel.city,
+                        "start_date": booking.start_date.isoformat(),
+                        "end_date": booking.end_date.isoformat(),
+                        "original_price": str(original_price),
+                        "total_price": str(booking.total_price),
+                        "status": booking.status.value,
+                        "expires_at": (
+                            booking.expires_at.isoformat()
+                            if booking.expires_at
+                            else None
+                        ),
+                    },
+                    "pricing_summary": pricing_summary,
+                }
+            ),
+            200,
+        )
 
 
 # ── Confirm booking ──────────────────────────────────────────
+
 
 @reservation_bp.route("/<int:booking_id>/confirm", methods=["POST"])
 @jwt_required()
@@ -449,7 +562,9 @@ def confirm_booking(booking_id):
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
 
         if not booking:
@@ -458,32 +573,61 @@ def confirm_booking(booking_id):
             return jsonify({"error": "Booking was cancelled"}), 400
         if booking.status in (Status.CONFIRMED, Status.COMPLETED):
             return jsonify({"error": "Already confirmed"}), 400
-        if booking.expires_at and booking.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        if booking.expires_at and booking.expires_at < datetime.now(
+            timezone.utc
+        ).replace(tzinfo=None):
             booking.status = Status.CANCELLED
             db.commit()
             return jsonify({"error": "Booking expired — please start over"}), 400
 
         booking.status = Status.CONFIRMED
         booking.expires_at = None
-        points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-        user = db.get(User, user_id)
-        user.points += points_earned
-        db.add(PointsTransaction(
-            user_id = user_id,
-            booking_id = booking_id,
-            points = points_earned,
-            log = f"Earned {points_earned} points on transaction {booking.booking_number}",
-        ))
+
+        # Should not earn rewards when using points as discount
+        redeemed = (
+            db.execute(
+                select(func.count(PointsTransaction.id)).where(
+                    and_(
+                        PointsTransaction.booking_id == booking_id,
+                        PointsTransaction.points < 0,
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+
+        if redeemed > 0:
+            points_earned = 0
+        else:
+            points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+
+        if points_earned > 0:
+            user = db.get(User, user_id)
+            user.points += points_earned
+            db.add(
+                PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=points_earned,
+                    log=f"Earned {points_earned} points on transaction {booking.booking_number}",
+                )
+            )
 
         db.commit()
-        return jsonify({
-            "message": "Booking confirmed",
-            "booking_number": booking.booking_number,
-            "points_earned": points_earned, 
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Booking confirmed",
+                    "booking_number": booking.booking_number,
+                    "points_earned": points_earned,
+                }
+            ),
+            200,
+        )
 
 
 # ── Cancel booking ────────────────────────────────────────────────────────────
+
 
 @reservation_bp.route("/<int:booking_id>/cancellation-preview", methods=["GET"])
 @jwt_required()
@@ -491,7 +635,9 @@ def get_cancellation_preview(booking_id):
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
@@ -511,14 +657,17 @@ def get_cancellation_preview(booking_id):
             ).scalar()
             or 0
         )
-        earned_points = db.execute(
-            select(func.sum(PointsTransaction.points)).where(
-                and_(
-                    PointsTransaction.booking_id == booking_id,
-                    PointsTransaction.points > 0,
+        earned_points = (
+            db.execute(
+                select(func.sum(PointsTransaction.points)).where(
+                    and_(
+                        PointsTransaction.booking_id == booking_id,
+                        PointsTransaction.points > 0,
+                    )
                 )
-            )
-        ).scalar() or 0
+            ).scalar()
+            or 0
+        )
         details = get_cancellation_details(db, booking)
         user = db.get(User, user_id)
         if earned_points > 0 and user and user.points < earned_points:
@@ -527,15 +676,30 @@ def get_cancellation_preview(booking_id):
             details["refund_amount"] = Decimal("0.00")
             details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
-            return jsonify({
-                "error": "Reservations can only be cancelled at least 48 hours before check-in",
-                "cancellation": _cancellation_payload(booking, details, restored_points),
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Reservations can only be cancelled at least 48 hours before check-in",
+                        "cancellation": _cancellation_payload(
+                            booking, details, restored_points
+                        ),
+                    }
+                ),
+                400,
+            )
 
-        return jsonify({
-            "message": "Review cancellation details before confirming",
-            "cancellation": _cancellation_payload(booking, details, restored_points),
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Review cancellation details before confirming",
+                    "cancellation": _cancellation_payload(
+                        booking, details, restored_points
+                    ),
+                }
+            ),
+            200,
+        )
+
 
 @reservation_bp.route("/<int:booking_id>", methods=["DELETE"])
 @jwt_required()
@@ -545,7 +709,9 @@ def cancel_booking(booking_id):
     confirmed = bool(data.get("confirmed"))
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
@@ -565,14 +731,17 @@ def cancel_booking(booking_id):
             ).scalar()
             or 0
         )
-        earned = db.execute(
-            select(func.sum(PointsTransaction.points)).where(
-                and_(
-                    PointsTransaction.booking_id == booking_id,
-                    PointsTransaction.points > 0,
+        earned = (
+            db.execute(
+                select(func.sum(PointsTransaction.points)).where(
+                    and_(
+                        PointsTransaction.booking_id == booking_id,
+                        PointsTransaction.points > 0,
+                    )
                 )
-            )
-        ).scalar() or 0
+            ).scalar()
+            or 0
+        )
         details = get_cancellation_details(db, booking)
         user = db.get(User, user_id)
         if earned > 0 and user and user.points < earned:
@@ -581,45 +750,68 @@ def cancel_booking(booking_id):
             details["refund_amount"] = Decimal("0.00")
             details["fee_percent"] = Decimal("100.00")
         if not details["allowed"]:
-            return jsonify({
-                "error": "Reservations can only be cancelled at least 48 hours before check-in",
-                "cancellation": _cancellation_payload(booking, details, redeemed_points),
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Reservations can only be cancelled at least 48 hours before check-in",
+                        "cancellation": _cancellation_payload(
+                            booking, details, redeemed_points
+                        ),
+                    }
+                ),
+                400,
+            )
 
         if not confirmed:
-            return jsonify({
-                "message": "Confirm cancellation to process the refund",
-                "requires_confirmation": True,
-                "cancellation": _cancellation_payload(booking, details, redeemed_points),
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "message": "Confirm cancellation to process the refund",
+                        "requires_confirmation": True,
+                        "cancellation": _cancellation_payload(
+                            booking, details, redeemed_points
+                        ),
+                    }
+                ),
+                200,
+            )
 
         # Reverse any points earned when this booking was confirmed
         if earned > 0 and user:
             user.points = max(0, user.points - earned)
-            db.add(PointsTransaction(
-                user_id=user_id,
-                booking_id=booking_id,
-                points=-earned,
-                log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
-            ))
+            db.add(
+                PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=-earned,
+                    log=f"Reversed {earned} earned points for cancelled booking {booking.booking_number}",
+                )
+            )
 
         if redeemed_points > 0 and user:
             user.points += redeemed_points
-            db.add(PointsTransaction(
-                user_id=user_id,
-                booking_id=booking_id,
-                points=redeemed_points,
-                log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
-            ))
+            db.add(
+                PointsTransaction(
+                    user_id=user_id,
+                    booking_id=booking_id,
+                    points=redeemed_points,
+                    log=f"Restored {redeemed_points} redeemed points for cancelled booking {booking.booking_number}",
+                )
+            )
 
         booking.status = Status.CANCELLED
         try:
             db.commit()
         except (IntegrityError, SQLAlchemyError):
             db.rollback()
-            return jsonify({
-                "error": "Cancellation failed. Please try again.",
-            }), 500
+            return (
+                jsonify(
+                    {
+                        "error": "Cancellation failed. Please try again.",
+                    }
+                ),
+                500,
+            )
 
         user = db.get(User, user_id)
         email_sent = False
@@ -631,17 +823,22 @@ def cancel_booking(booking_id):
                 refund_amount=details["refund_amount"],
             )
 
-        return jsonify({
-            "message": "Booking cancelled",
-            "booking_number": booking.booking_number,
-            "refund": {
-                "processed": True,
-                "amount": str(details["refund_amount"]),
-                "fee_amount": str(details["fee_amount"]),
-                "points_restored": int(redeemed_points),
-            },
-            "email_sent": email_sent,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Booking cancelled",
+                    "booking_number": booking.booking_number,
+                    "refund": {
+                        "processed": True,
+                        "amount": str(details["refund_amount"]),
+                        "fee_amount": str(details["fee_amount"]),
+                        "points_restored": int(redeemed_points),
+                    },
+                    "email_sent": email_sent,
+                }
+            ),
+            200,
+        )
 
 
 @reservation_bp.route("/<int:booking_id>/email-receipt", methods=["POST"])
@@ -650,7 +847,9 @@ def email_receipt(booking_id):
     user_id = int(get_jwt_identity())
     with Session(engine) as db:
         booking = db.execute(
-            select(Booking).where(and_(Booking.id == booking_id, Booking.user == user_id))
+            select(Booking).where(
+                and_(Booking.id == booking_id, Booking.user == user_id)
+            )
         ).scalar_one_or_none()
         if not booking:
             return jsonify({"error": "Booking not found"}), 404
@@ -659,24 +858,24 @@ def email_receipt(booking_id):
         if not user or not user.email:
             return jsonify({"error": "No email address on file for this account"}), 400
 
-        room  = db.get(HotelRoom, booking.room)
+        room = db.get(HotelRoom, booking.room)
         hotel = db.get(Hotel, room.hotel) if room else None
 
         n = (booking.end_date - booking.start_date).days
         total = float(booking.total_price)
-        fee   = round(total * 0.10, 2)
+        fee = round(total * 0.10, 2)
 
         receipt_rows = [
             ("Booking Number", booking.booking_number),
-            ("Trip Title",     booking.title),
-            ("Hotel",          hotel.name  if hotel else "—"),
-            ("City",           hotel.city  if hotel else "—"),
-            ("Room Type",      room.room_type.value.capitalize() if room else "—"),
-            ("Check-in",       booking.start_date.isoformat()),
-            ("Check-out",      booking.end_date.isoformat()),
-            ("Nights",         str(n)),
-            ("Status",         booking.status.value.capitalize()),
-            ("Total Price",    f"${total:.2f}"),
+            ("Trip Title", booking.title),
+            ("Hotel", hotel.name if hotel else "—"),
+            ("City", hotel.city if hotel else "—"),
+            ("Room Type", room.room_type.value.capitalize() if room else "—"),
+            ("Check-in", booking.start_date.isoformat()),
+            ("Check-out", booking.end_date.isoformat()),
+            ("Nights", str(n)),
+            ("Status", booking.status.value.capitalize()),
+            ("Total Price", f"${total:.2f}"),
             ("Cancellation Fee (10%)", f"${fee:.2f}"),
         ]
 
@@ -777,13 +976,24 @@ def email_receipt(booking_id):
                 html_body=html_body,
             )
         except Exception:  # pylint: disable=broad-except
-            return jsonify({"error": "Failed to send receipt email. Please try again."}), 500
+            return (
+                jsonify({"error": "Failed to send receipt email. Please try again."}),
+                500,
+            )
 
         if not sent:
-            return jsonify({"error": "Failed to send receipt email. Please try again."}), 500
+            return (
+                jsonify({"error": "Failed to send receipt email. Please try again."}),
+                500,
+            )
 
-        return jsonify({
-            "message": "Receipt sent",
-            "booking_number": booking.booking_number,
-            "sent_to": user.email,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Receipt sent",
+                    "booking_number": booking.booking_number,
+                    "sent_to": user.email,
+                }
+            ),
+            200,
+        )

@@ -14,7 +14,8 @@ export default defineConfig({
       "/hotels":       { target: backendUrl, changeOrigin: true },
       "/reservations": { target: backendUrl, changeOrigin: true },
       "/rewards":      { target: backendUrl, changeOrigin: true },
-      '/saved-searches': { target: backendUrl, changeOrigin: true },
+      "/saved-searches": { target: backendUrl, changeOrigin: true },
+      "/favorites":    { target: backendUrl, changeOrigin: true },
     },
   },
 });

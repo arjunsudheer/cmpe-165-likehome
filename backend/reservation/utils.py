@@ -3,6 +3,7 @@ Pure helper functions for reservation logic.
 Kept separate from routes.py so tests can import them without
 triggering Flask/SQLAlchemy app-context setup.
 """
+
 import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -11,7 +12,6 @@ from sqlalchemy import and_, select
 
 from backend.db.models import Booking, CancellationPolicy, HotelRoom, Status
 from backend.utils.email import send_email
-
 
 DEFAULT_CANCELLATION_WINDOW_HOURS = 48
 DEFAULT_CANCELLATION_FEE_PERCENT = Decimal("0.00")
@@ -131,45 +131,25 @@ def send_cancellation_email(
     refund_amount: Decimal,
 ) -> bool:
     subject = f"LikeHome cancellation confirmation - {booking_number}"
-    body = "\n".join([
-        "Your reservation has been cancelled.",
-        f"Booking number: {booking_number}",
-        f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
-        f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
-    ])
-    
+    body = "\n".join(
+        [
+            "Your reservation has been cancelled.",
+            f"Booking number: {booking_number}",
+            f"Cancellation fee: ${Decimal(str(fee_amount)).quantize(Decimal('0.01'))}",
+            f"Refund amount: ${Decimal(str(refund_amount)).quantize(Decimal('0.01'))}",
+        ]
+    )
+
     return send_email(to_email, subject, body)
 
 
 def send_receipt_email(
     to_email: str,
     booking_number: str,
-    title: str,
-    hotel_name: str,
-    hotel_city: str,
-    room_type: str,
-    check_in: str,
-    check_out: str,
-    nights: int,
-    status: str,
-    total_price: Decimal,
+    html_body: str,
 ) -> bool:
-    fee = Decimal(str(total_price)).quantize(Decimal("0.01")) * Decimal("0.10")
     subject = f"LikeHome booking receipt - {booking_number}"
-    body = "\n".join([
-        "Thank you for your booking! Here is your receipt.",
-        "",
-        f"Booking Number:       {booking_number}",
-        f"Trip Title:           {title}",
-        f"Hotel:                {hotel_name}",
-        f"City:                 {hotel_city}",
-        f"Room Type:            {room_type}",
-        f"Check-in:             {check_in}",
-        f"Check-out:            {check_out}",
-        f"Nights:               {nights}",
-        f"Status:               {status}",
-        f"Total Price:          ${Decimal(str(total_price)).quantize(Decimal('0.01'))}",
-        f"Cancellation Fee (10%): ${fee.quantize(Decimal('0.01'))}",
-    ])
+    # Plain text fallback
+    body = f"Thank you for your booking! Booking Number: {booking_number}. Please view the attached receipt."
 
-    return send_email(to_email, subject, body)
+    return send_email(to_email, subject, body, html_body=html_body)

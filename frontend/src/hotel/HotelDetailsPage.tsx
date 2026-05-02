@@ -187,8 +187,8 @@ function HotelDetailsContent({ hotelId }: { hotelId: string }) {
             <section className="hdp-section">
               <h2 className="hdp-section-title">Amenities</h2>
               <div className="hdp-amenities">
-                {hotel.amenities.map((a) => (
-                  <div key={a} className="hdp-amenity">
+                {hotel.amenities.map((a, i) => (
+                  <div key={`${a}-${i}`} className="hdp-amenity">
                     <span className="hdp-amenity-icon">{AMENITY_ICONS[a] || "✓"}</span>
                     <span>{a}</span>
                   </div>
@@ -201,10 +201,10 @@ function HotelDetailsContent({ hotelId }: { hotelId: string }) {
             <section className="hdp-section">
               <h2 className="hdp-section-title">Room Types</h2>
               <div className="hdp-rooms">
-                {hotel.room_types.map((rt) => {
+                {hotel.room_types.map((rt, i) => {
                   const mult = rt.type === "SINGLE" ? .85 : rt.type === "TRIPLE" ? 1.35 : rt.type === "QUAD" ? 1.7 : 1;
                   return (
-                    <div key={rt.type} className="hdp-room-card">
+                    <div key={`${rt.type}-${i}`} className="hdp-room-card">
                       <div className="hdp-room-type">{rt.type.charAt(0) + rt.type.slice(1).toLowerCase()}</div>
                       <div className="hdp-room-avail">{rt.count} available</div>
                       <div className="hdp-room-price">${(hotel.price_per_night * mult).toFixed(0)}<span>/night</span></div>

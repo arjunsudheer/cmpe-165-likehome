@@ -42,8 +42,8 @@ def add_favorite(hotel_id):
             cached = _hotel_details_cache.get(hotel_id)
             if not cached:
                 return jsonify({"error": "Hotel not found"}), 404
-            db.add(Hotel(id=hotel_id, name=cached["name"], city=cached["city"],
-                         price_per_night=cached["price_per_night"], rating=cached["rating"]))
+            db.add(Hotel(id=hotel_id, name=cached.name, city=cached.city,
+                         price_per_night=cached.price_per_night, rating=cached.rating))
             db.commit()
             for amenity in cached.amenities:
                 db.execute(insert(HotelAmenity).values(hotel_id=hotel_id, name=amenity))

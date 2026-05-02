@@ -103,7 +103,7 @@ export default function CheckoutPage() {
   const maxPts = Math.min(balance, Math.floor(bookingTotal * RATE));
   const discount = pts / RATE;
   const finalTotal = Math.max(0, bookingTotal - discount);
-  const estimatedEarnedPts = Math.max(0, Math.floor(finalTotal * 10));
+  const estimatedEarnedPts = pts > 0 ? 0 : Math.max(0, Math.floor(finalTotal * 10));
   const isExpired = timeLeft !== null && timeLeft === 0;
 
   useEffect(() => {
@@ -234,7 +234,7 @@ export default function CheckoutPage() {
                 `${selectedCard.brand === "visa" ? "Visa" : selectedCard.brand === "mastercard" ? "Mastercard" : selectedCard.brand === "amex" ? "Amex" : "Card"} ••••${selectedCard.last4}`
               ]] : []),
               ...(pts > 0 ? [["Points used", `${pts.toLocaleString()} pts`]] : []),
-              ...(earnedPts > 0 ? [["Points earned", `+${earnedPts.toLocaleString()} pts`]] : []),
+              ["Points earned", `+${earnedPts.toLocaleString()} pts`],
             ].map(([k, v]) => (
               <div key={k} className="success-row">
                 <span>{k}</span><strong>{v}</strong>
@@ -349,6 +349,7 @@ export default function CheckoutPage() {
             </div>
             <div className="points-preview">
               You will earn approximately <strong>+{estimatedEarnedPts.toLocaleString()} pts</strong> from this booking.
+              {pts > 0 && <span className="points-redeem-hint"> (No rewards earned when points are redeemed)</span>}
             </div>
 
             {!selectedCard && !isExpired && (

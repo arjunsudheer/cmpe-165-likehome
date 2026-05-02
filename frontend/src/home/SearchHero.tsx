@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import "./SearchHero.css";
 import type { SortField, SortOrder } from "./HomePage";
@@ -34,22 +34,15 @@ interface Props {
 
 const SearchHero = forwardRef<SearchHeroHandle, Props>(
   ({ onSearch, isLoading, resultCount, filters, sortSettings, initialValues }, ref) => {
-    const [destination, setDestination] = useState("");
-    const [checkIn, setCheckIn] = useState("");
-    const [checkOut, setCheckOut] = useState("");
-    const [guests, setGuests] = useState(1);
+    const [destination, setDestination] = useState(initialValues?.destination ?? "");
+    const [checkIn, setCheckIn] = useState(initialValues?.checkIn ?? "");
+    const [checkOut, setCheckOut] = useState(initialValues?.checkOut ?? "");
+    const [guests, setGuests] = useState(initialValues?.guests ?? 1);
     const [error, setError] = useState("");
-    const [savedSuccess, setSavedSucccess] = useState("")
+    const [savedSuccess, setSavedSuccess] = useState("")
     const auth = useAuth();
 
-    useEffect(() => {
-      if (initialValues) {
-        setDestination(initialValues.destination);
-        setCheckIn(initialValues.checkIn);
-        setCheckOut(initialValues.checkOut);
-        setGuests(initialValues.guests);
-      }
-    }, [initialValues]);
+    // initialValues are applied on mount via useState initializers above
 
     const today = new Date().toISOString().split("T")[0];
     const canSearch = destination.trim() && checkIn && checkOut;
@@ -91,8 +84,8 @@ const SearchHero = forwardRef<SearchHeroHandle, Props>(
         });
         const data = await res.json();
         if (!res.ok) { setError(data.error || "Failed to save search."); return; }
-        setError(""); 
-        setSavedSucccess("Search successfully saved.")
+        setError("");
+        setSavedSuccess("Search successfully saved.")
       }
       catch { setError("Network error — please try again."); }
     };

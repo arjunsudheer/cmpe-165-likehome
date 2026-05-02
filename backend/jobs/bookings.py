@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import update, insert, select
+from sqlalchemy import update, insert, select, and_, func, delete
 from sqlalchemy.orm import Session
 from backend.db.db_connection import engine
 from backend.db.models import (
@@ -48,24 +48,62 @@ def complete_bookings_and_earn_points():
             )
 
             for booking in completed_bookings:
-                points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-                session.execute(
-                    update(User)
-                    .where(User.id == booking.user)
-                    .values(points = User.points + points_earned)
-                )
-                session.flush()
-                check_points_for_free_stay(user_id=booking.user, session=session)
-                session.execute(
-                    insert(PointsTransaction)
-                    .values(
-                        user_id = booking.user,
-                        booking_id = booking.id,
-                        points = points_earned,
-                        log = f"Earned {points_earned} points on booking #{booking.id}",
-                        recorded_at = datetime.now()
+                # Should not earn rewards when using points as discount
+                redeemed = session.execute(
+                    select(func.count(PointsTransaction.id)).where(
+                        and_(
+                            PointsTransaction.booking_id == booking.id,
+                            PointsTransaction.points < 0
+                        )
                     )
+                ).scalar() or 0
+                
+                if redeemed > 0:
+                    points_earned = 0
+                else:
+                    points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+                
+                if points_earned > 0:
+                    session.execute(
+                        update(User)
+                        .where(User.id == booking.user)
+                        .values(points = User.points + points_earned)
+                    )
+                    session.flush()
+                    check_points_for_free_stay(user_id=booking.user, session=session)
+                    session.execute(
+                        insert(PointsTransaction)
+                        .values(
+                            user_id = booking.user,
+                            booking_id = booking.id,
+                            points = points_earned,
+                            log = f"Earned {points_earned} points on booking #{booking.id}",
+                            recorded_at = datetime.now()
+                        )
+                    )
+                    
+                    # Cleanup old notifications for this booking
+                    session.execute(
+                        delete(Notification)
+                        .where(
+                            Notification.user_id == booking.user,
+                            Notification.message.like(f"%{booking.booking_number}%")
+                        )
+                    )
+            
+            # General cleanup for any orphaned or old notifications for completed/cancelled bookings
+            # This ensures they 'disappear' as requested.
+            past_bookings = session.execute(
+                select(Booking.booking_number)
+                .where(Booking.status.in_([Status.COMPLETED, Status.CANCELLED]))
+            ).scalars().all()
+            
+            for b_num in past_bookings:
+                session.execute(
+                    delete(Notification)
+                    .where(Notification.message.like(f"%{b_num}%"))
                 )
+
             session.commit()
 
         except Exception as e:
