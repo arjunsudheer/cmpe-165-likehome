@@ -7,7 +7,7 @@ import "./Booking.css";
 
 type Step = 1 | 2 | 3;
 
-interface HotelMeta { id: number; name: string; city: string; price_per_night: number; }
+interface HotelMeta { id: number; name: string; city: string; price_per_night: number; address: string; }
 
 interface AvailRoom { id: number; room: number; room_type: string; }
 
@@ -62,13 +62,13 @@ export default function Booking() {
   useEffect(() => {
     if (!auth.isAuthenticated) { navigate("/login"); return; }
     if (!hotelId) return;
-    fetch(`/hotels/${hotelId}`)
+    fetch(`/hotels/${hotelId}?${searchParams}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) { navigate("/"); return; }
-        setHotel({ id: d.id, name: d.name, city: d.city, price_per_night: d.price_per_night });
+        setHotel({ id: d.id, name: d.name, city: d.city, price_per_night: d.price_per_night, address: d.address });
       });
-  }, [hotelId, auth.isAuthenticated, navigate]);
+  }, [hotelId, auth.isAuthenticated, navigate, searchParams]);
 
   useEffect(() => {
     if (!isReschedule || !rescheduleBookingId || !auth.isAuthenticated) return;
@@ -156,7 +156,7 @@ export default function Booking() {
     setCreating(true);
     setStepError("");
     try {
-      const body = JSON.stringify({ title, room: selectedOpt.rooms[0].id, start_date: checkIn, end_date: checkOut });
+      const body = JSON.stringify({ title, room: selectedOpt.rooms[0].room, start_date: checkIn, end_date: checkOut, hotel_id: hotel.id });
       const res = await fetch(isReschedule ? `/reservations/${rescheduleBookingId}` : "/reservations/", {
         method: isReschedule ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json", ...auth.authHeader() },

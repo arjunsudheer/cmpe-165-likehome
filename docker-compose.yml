@@ -25,6 +25,7 @@ services:
       DATABASE_URL: postgresql://likehome:likehome@db:5432/likehome
       JWT_SECRET_KEY: change-this-secret-in-production
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      HOTEL_API_KEY: ${HOTEL_API_KEY:-}
       # Werkzeug reloader watches for file changes
       FLASK_DEBUG: "1"
     env_file:
