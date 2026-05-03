@@ -47,58 +47,11 @@ def complete_bookings_and_earn_points():
                 .where(Booking.id.in_(booking_ids))
                 .values(status=Status.COMPLETED)
             )
-
-            for booking in completed_bookings:
-                if booking_points_redeemed_total(session, booking.id) > 0:
-                    continue
-                points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
-                session.execute(
-                    update(User)
-                    .where(User.id == booking.user)
-                    .values(points = User.points + points_earned)
-                )
-                session.flush()
-                check_points_for_free_stay(user_id=booking.user, session=session)
-                session.execute(
-                    insert(PointsTransaction)
-                    .values(
-                        user_id = booking.user,
-                        booking_id = booking.id,
-                        points = points_earned,
-                        log = f"Earned {points_earned} points on booking #{booking.id}",
-                        recorded_at = datetime.now()
-                    )
-                )
             session.commit()
 
         except Exception as e:
             session.rollback()
             raise RuntimeError(f"Failed to update bookings: {e}") from e
-
-def check_points_for_free_stay(user_id, session):
-    user = session.scalars(
-        select(User)
-        .where(User.id == user_id, User.points >= FREE_STAY_THRESHOLD)
-    ).one_or_none()
-    if user:
-        # just allows one free stay coupon at once per user
-        existing_coupon = session.scalars(
-            select(Coupon)
-            .where(
-                Coupon.user_id==user_id,
-                Coupon.coupon_type==CouponType.FREESTAY,
-                Coupon.status==CouponStatus.REDEEMABLE
-            )
-        ).first()
-        if not existing_coupon:
-            session.execute(
-                insert(Coupon)
-                .values(
-                    user_id=user_id,
-                    coupon_type=CouponType.FREESTAY,
-                    value_in_points=FREE_STAY_THRESHOLD
-                )
-            )
 
 def create_booking_reminders():
     with Session(engine) as session:
