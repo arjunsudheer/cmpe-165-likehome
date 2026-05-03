@@ -47,10 +47,6 @@ def complete_bookings_and_earn_points():
                 .where(Booking.id.in_(booking_ids))
                 .values(status=Status.COMPLETED)
             )
-
-            for booking in completed_bookings:
-                if booking_points_redeemed_total(session, booking.id) > 0:
-                    continue
             session.commit()
 
         except Exception as e:
