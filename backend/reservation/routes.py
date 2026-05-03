@@ -29,6 +29,107 @@ from backend.search.routes import _hotel_details_cache
 
 POINTS_PER_DOLLAR = 10
 
+
+def _confirmed_bookings_for_user(db, user_id: int):
+    return db.execute(
+        select(Booking).where(
+            and_(
+                Booking.user == user_id,
+                Booking.status == Status.CONFIRMED,
+            )
+        )
+    ).scalars().all()
+
+
+def _refresh_refundable_user_overlaps(db, user_id: int) -> None:
+    """
+    Mark confirmed bookings non-refundable when their date range overlaps any other
+    confirmed booking (any hotel). Matches /reservations/check-conflicts and the
+    booking flow "Book anyway" warning.
+    """
+    bookings = _confirmed_bookings_for_user(db, user_id)
+    for b in bookings:
+        overlap = any(
+            ob.id != b.id and ob.start_date < b.end_date and ob.end_date > b.start_date
+            for ob in bookings
+        )
+        b.refundable = not overlap
+
+
+def _sum_positive_points_for_booking(db, booking_id: int) -> int:
+    raw = db.execute(
+        select(func.coalesce(func.sum(PointsTransaction.points), 0)).where(
+            and_(
+                PointsTransaction.booking_id == booking_id,
+                PointsTransaction.points > 0,
+            )
+        )
+    ).scalar()
+    return int(raw or 0)
+
+
+def _adjust_booking_reward_points_after_price_or_overlap_change(
+    db,
+    user_id: int,
+    booking: Booking,
+    *,
+    redeemed_total: int,
+) -> None:
+    """
+    Keep rewards in sync with policy after reschedule: eligible bookings earn
+    points equal to total_price × rate; overlapping or redeemed-checkout bookings earn 0.
+    """
+    overlap = not booking.refundable
+    target = 0
+    if redeemed_total == 0 and not overlap:
+        target = int(float(booking.total_price) * POINTS_PER_DOLLAR)
+    current = _sum_positive_points_for_booking(db, booking.id)
+    adjustment = target - current
+    if adjustment == 0:
+        return
+    user = db.get(User, user_id)
+    if not user:
+        return
+    if adjustment > 0:
+        user.points += adjustment
+        db.add(
+            PointsTransaction(
+                user_id=user_id,
+                booking_id=booking.id,
+                points=adjustment,
+                log=(
+                    f"Rewards adjusted by +{adjustment} pts after itinerary change "
+                    f"({booking.booking_number})"
+                ),
+            )
+        )
+    else:
+        take = min(user.points, -adjustment)
+        if take <= 0:
+            return
+        user.points -= take
+        db.add(
+            PointsTransaction(
+                user_id=user_id,
+                booking_id=booking.id,
+                points=-take,
+                log=(
+                    f"Rewards adjusted by -{take} pts after itinerary change "
+                    f"({booking.booking_number})"
+                ),
+            )
+        )
+
+
+def _apply_non_refundable_cancellation_penalty(booking, details: dict) -> None:
+    """Non-refundable (e.g. overlapping) stays forfeit the full amount — no refund."""
+    if not booking.refundable:
+        total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+        details["fee_amount"] = total_price
+        details["refund_amount"] = Decimal("0.00")
+        details["fee_percent"] = Decimal("100.00")
+
+
 def _reschedule_conflicts(db, room_id, booking_id, start_date, end_date):
     return [
         c for c in check_room_availability(db, room_id, start_date, end_date)
@@ -54,9 +155,12 @@ def _pricing_summary(price_difference):
 
 
 def _cancellation_payload(booking, details, points_to_restore=0):
-    fee_amount = details["fee_amount"]
-    refund_amount = Decimal("0.00") if not booking.refundable else details["refund_amount"]
-    fee_amount = booking.total_price if not booking.refundable else details["fee_amount"]
+    if not booking.refundable:
+        fee_amount = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
+        refund_amount = Decimal("0.00")
+    else:
+        fee_amount = details["fee_amount"]
+        refund_amount = details["refund_amount"]
     return {
         "booking_id": booking.id,
         "booking_number": booking.booking_number,
@@ -69,8 +173,8 @@ def _cancellation_payload(booking, details, points_to_restore=0):
         "refund_amount": str(refund_amount),
         "points_to_restore": 0 if not booking.refundable else int(points_to_restore),
         "summary": {
-            "fee_message": f'Cancellation fee: ${details["fee_amount"]}',
-            "refund_message": f'Refund amount: ${details["refund_amount"]}',
+            "fee_message": f"Cancellation fee: ${fee_amount}",
+            "refund_message": f"Refund amount: ${refund_amount}",
         },
     }
 
@@ -559,6 +663,17 @@ def reschedule_booking(booking_id): # pylint: disable=too-many-locals
         if booking.status == Status.INPROGRESS:
             booking.expires_at = datetime.now() + timedelta(minutes=5)
 
+        if booking.status == Status.CONFIRMED:
+            _refresh_refundable_user_overlaps(db, user_id)
+            db.flush()
+            redeemed_total = booking_points_redeemed_total(db, booking_id)
+            _adjust_booking_reward_points_after_price_or_overlap_change(
+                db,
+                user_id,
+                booking,
+                redeemed_total=redeemed_total,
+            )
+
         db.commit()
 
         pricing_summary = _pricing_summary(price_difference)
@@ -608,34 +723,12 @@ def confirm_booking(booking_id):
         booking.status = Status.CONFIRMED
         booking.expires_at = None
 
-        room_row = db.get(HotelRoom, booking.room)
-        current_hotel_id = room_row.hotel if room_row else None
-
-        overlapping_same_hotel = []
-        if current_hotel_id is not None:
-            overlapping_same_hotel = db.execute(
-                select(Booking)
-                .join(HotelRoom, Booking.room == HotelRoom.id)
-                .where(
-                    and_(
-                        Booking.user == user_id,
-                        Booking.id != booking_id,
-                        Booking.status == Status.CONFIRMED,
-                        HotelRoom.hotel == current_hotel_id,
-                        Booking.start_date < booking.end_date,
-                        Booking.end_date > booking.start_date,
-                    )
-                )
-            ).scalars().all()
-
-        for old in overlapping_same_hotel:
-            old.refundable = False
-        if overlapping_same_hotel:
-            booking.refundable = False
+        _refresh_refundable_user_overlaps(db, user_id)
+        db.flush()
 
         redeemed_total = booking_points_redeemed_total(db, booking_id)
         points_earned = 0
-        if not overlapping_same_hotel and redeemed_total == 0:
+        if booking.refundable and redeemed_total == 0:
             points_earned = int(float(booking.total_price) * POINTS_PER_DOLLAR)
             user = db.get(User, user_id)
             user.points += points_earned
@@ -691,6 +784,7 @@ def get_cancellation_preview(booking_id):
             )
         ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        _apply_non_refundable_cancellation_penalty(booking, details)
         user = db.get(User, user_id)
         if earned_points > 0 and user and user.points < earned_points:
             total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
@@ -745,6 +839,7 @@ def cancel_booking(booking_id):
             )
         ).scalar() or 0
         details = get_cancellation_details(db, booking)
+        _apply_non_refundable_cancellation_penalty(booking, details)
         user = db.get(User, user_id)
         if earned > 0 and user and user.points < earned:
             total_price = Decimal(str(booking.total_price)).quantize(Decimal("0.01"))
