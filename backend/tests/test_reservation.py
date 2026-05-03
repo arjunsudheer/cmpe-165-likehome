@@ -379,6 +379,79 @@ class TestListBookings:
         assert payload[0]["status"] == "INPROGRESS"
 
 
+class TestConfirmOverlapPolicy:
+    """Overlapping confirmed dates (any hotel) must match check-conflicts / Book anyway UX."""
+
+    def test_confirm_second_overlap_booking_no_points_and_non_refundable(
+        self, reservation_client, session
+    ):
+        headers = _auth_headers(reservation_client, "overlap-diff-hotel@example.com")
+        user = session.query(User).filter_by(email="overlap-diff-hotel@example.com").one()
+
+        h1 = Hotel(
+            name="Hotel One",
+            price_per_night=Decimal("100.00"),
+            city="San Jose",
+            address="Overlap Test Addr One",
+        )
+        h2 = Hotel(
+            name="Hotel Two",
+            price_per_night=Decimal("100.00"),
+            city="Oakland",
+            address="Overlap Test Addr Two",
+        )
+        session.add_all([h1, h2])
+        session.flush()
+
+        r1 = _make_typed_room(session, h1, 101, RoomType.DOUBLE)
+        r2 = _make_typed_room(session, h2, 201, RoomType.DOUBLE)
+
+        _make_booking(
+            session,
+            user,
+            r1,
+            date(2028, 7, 1),
+            date(2028, 7, 6),
+            price="500.00",
+        )
+        session.flush()
+
+        b2 = Booking(
+            booking_number=generate_booking_number(),
+            title="Second trip",
+            user=user.id,
+            room=r2.id,
+            start_date=date(2028, 7, 4),
+            end_date=date(2028, 7, 8),
+            total_price=Decimal("400.00"),
+            status=Status.INPROGRESS,
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=30),
+        )
+        session.add(b2)
+        session.flush()
+
+        points_before = user.points
+        response = reservation_client.post(
+            f"/reservations/{b2.id}/confirm",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.get_json()["points_earned"] == 0
+        session.expire_all()
+        assert session.get(User, user.id).points == points_before
+        b2_db = session.get(Booking, b2.id)
+        assert b2_db.refundable is False
+
+        preview = reservation_client.get(
+            f"/reservations/{b2.id}/cancellation-preview",
+            headers=headers,
+        )
+        assert preview.status_code == 200
+        c = preview.get_json()["cancellation"]
+        assert c["refund_amount"] == "0.00"
+        assert c["fee_amount"] == "400.00"
+
+
 class TestRedemptionAccuracy:
 
     def _inprogress_booking_fixture(self, client, session, email):
@@ -606,6 +679,34 @@ class TestCancelReservationPolicy:
         session.expire_all()
         unchanged = session.get(Booking, booking.id)
         assert unchanged.status == Status.CONFIRMED
+
+    def test_cancellation_preview_non_refundable_full_stay_penalty(
+        self, reservation_client, session
+    ):
+        headers = _auth_headers(reservation_client, "cancel-noref-full@example.com")
+        user = session.query(User).filter_by(email="cancel-noref-full@example.com").one()
+        hotel = _make_hotel(session)
+        room = _make_typed_room(session, hotel, 401, RoomType.DOUBLE)
+        booking = _make_booking(
+            session,
+            user,
+            room,
+            date.today() + timedelta(days=10),
+            date.today() + timedelta(days=12),
+            price="320.00",
+        )
+        booking.refundable = False
+        session.flush()
+
+        response = reservation_client.get(
+            f"/reservations/{booking.id}/cancellation-preview",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["cancellation"]["fee_amount"] == "320.00"
+        assert payload["cancellation"]["refund_amount"] == "0.00"
+        assert payload["cancellation"]["points_to_restore"] == 0
 
     def test_cancellation_request_without_confirmation_returns_refund_details_and_keeps_status(self, reservation_client, session):
         headers = _auth_headers(reservation_client, "cancel-quote@example.com")

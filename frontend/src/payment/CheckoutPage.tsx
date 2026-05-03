@@ -111,7 +111,7 @@ export default function CheckoutPage() {
   const discount = pts / RATE;
   const finalTotal = Math.max(0, bookingTotal - discount);
   const estimatedEarnedPts =
-    pts > 0 ? 0 : Math.max(0, Math.floor(finalTotal * 10));
+    hasOverlap || pts > 0 ? 0 : Math.max(0, Math.floor(finalTotal * 10));
   const isExpired = timeLeft !== null && timeLeft === 0;
 
   useEffect(() => {
