@@ -501,14 +501,6 @@ function BookingCard({
           >
             Download Receipt
           </button>
-          <button
-            className={`btn btn-secondary booking-reschedule-btn booking-receipt-btn${emailStatus === "sent" ? " btn-success" : emailStatus && emailStatus !== "sending" ? " btn-error" : ""}`}
-            onClick={() => onEmailReceipt(b.id)}
-            disabled={emailStatus === "sending" || emailStatus === "sent"}
-            title="Email receipt to your account address"
-          >
-            {emailLabel}
-          </button>
           {canCancel && (
             <button
               className="btn btn-secondary booking-cancel-btn"
